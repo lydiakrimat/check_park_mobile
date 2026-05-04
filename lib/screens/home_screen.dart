@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../models/mock_data.dart';
+import 'package:provider/provider.dart';
+import '../providers/notification_provider.dart';
+import '../providers/statistics_provider.dart';
 import '../theme/app_colors.dart';
 import 'history_screen.dart';
 import 'notifications_screen.dart';
@@ -57,7 +59,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  int get _unread => MockData.notifications.where((e) => !e.isRead).length;
+  int get _unread => context.watch<NotificationProvider>().unreadCount;
 
   @override
   Widget build(BuildContext context) {
@@ -476,37 +478,8 @@ class _HomeTab extends StatelessWidget {
             ),
             const SizedBox(height: 32),
 
-            // ── Infos rapides ──
-            Row(
-              children: [
-                Expanded(
-                  child: _quickInfo(
-                    Icons.check_circle_rounded,
-                    '${MockData.statExisting}',
-                    'Autorisés',
-                    AppColors.green,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _quickInfo(
-                    Icons.cancel_rounded,
-                    '${MockData.statNonExisting}',
-                    'Refusés',
-                    AppColors.danger,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _quickInfo(
-                    Icons.camera_alt_rounded,
-                    '${MockData.statTotalScans}',
-                    'Scans',
-                    AppColors.primary,
-                  ),
-                ),
-              ],
-            ),
+            // Infos rapides (depuis StatisticsProvider)
+            const _QuickStats(),
           ],
         ),
       ),
@@ -590,6 +563,51 @@ class _HomeTab extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Widget des infos rapides (KPIs) sur l'écran d'accueil.
+/// Lit les stats depuis StatisticsProvider (calculées à partir de l'historique).
+class _QuickStats extends StatelessWidget {
+  const _QuickStats();
+
+  @override
+  Widget build(BuildContext context) {
+    final stats = context.watch<StatisticsProvider>().stats;
+    final total     = stats?.total ?? 0;
+    final autorises = stats?.autorises ?? 0;
+    final refuses   = (stats?.refuses ?? 0) + (stats?.expires ?? 0);
+
+    return Row(
+      children: [
+        Expanded(
+          child: _quickInfo(
+            Icons.check_circle_rounded,
+            '$autorises',
+            'Autorises',
+            AppColors.green,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _quickInfo(
+            Icons.cancel_rounded,
+            '$refuses',
+            'Refuses',
+            AppColors.danger,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _quickInfo(
+            Icons.camera_alt_rounded,
+            '$total',
+            'Scans',
+            AppColors.primary,
+          ),
+        ),
+      ],
     );
   }
 

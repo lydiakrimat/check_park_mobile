@@ -1,8 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../models/mock_data.dart';
+import 'package:provider/provider.dart';
+import 'package:camera/camera.dart';
+import '../providers/scan_provider.dart';
+import '../models/scan_result.dart';
 import '../theme/app_colors.dart';
 
+/// Écran de scan par caméra.
+///
+/// L'agent ouvre cet écran, cadre le véhicule, appuie sur le bouton,
+/// et le pipeline complet s'exécute côté AI Service :
+///   Photo → YOLOX → PaddleOCR → Fuzzy Matching → Résultat
+///
+/// La caméra est initialisée à l'ouverture et libérée à la fermeture.
 class ScannerScreen extends StatefulWidget {
   const ScannerScreen({super.key});
 
@@ -12,55 +22,55 @@ class ScannerScreen extends StatefulWidget {
 
 class _ScannerScreenState extends State<ScannerScreen>
     with SingleTickerProviderStateMixin {
-  bool _scanned = false;
-  bool _scanning = false;
-
   late AnimationController _lineCtrl;
   late Animation<double> _lineAnim;
 
   @override
   void initState() {
     super.initState();
+
+    // Animation de la ligne de scan (boucle infinie haut/bas).
     _lineCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1800),
     )..repeat(reverse: true);
     _lineAnim = CurvedAnimation(parent: _lineCtrl, curve: Curves.easeInOut);
+
+    // Initialise la caméra via le provider.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<ScanProvider>().initCamera();
+    });
   }
 
   @override
   void dispose() {
     _lineCtrl.dispose();
+    // Libère la caméra quand l'agent quitte l'écran.
+    context.read<ScanProvider>().disposeCamera();
     super.dispose();
   }
 
-  Future<void> _simulateScan() async {
-    setState(() => _scanning = true);
-    await Future.delayed(const Duration(milliseconds: 1200));
-    if (!mounted) return;
-    setState(() {
-      _scanning = false;
-      _scanned  = true;
-    });
-  }
-
-  void _reset() => setState(() => _scanned = false);
-
   @override
   Widget build(BuildContext context) {
+    final scanProv = context.watch<ScanProvider>();
+    final bool hasDone = scanProv.hasDone;
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // ── Zone caméra simulée (fond noir + cadre de scan) ──
-          _buildCameraView(),
+          // Zone caméra (preview en direct ou fond noir pendant le chargement)
+          _buildCameraView(scanProv),
 
-          // ── Bouton retour ──
+          // Bouton retour
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: GestureDetector(
-                onTap: () => Navigator.pop(context),
+                onTap: () {
+                  scanProv.reset();
+                  Navigator.pop(context);
+                },
                 child: Container(
                   width: 40,
                   height: 40,
@@ -77,54 +87,73 @@ class _ScannerScreenState extends State<ScannerScreen>
             ),
           ),
 
-          // ── Résultat ou bouton scan ──
+          // Résultat ou bouton scan en bas
           Positioned(
             left: 0,
             right: 0,
             bottom: 0,
-            child: _scanned ? _buildResult() : _buildScanButton(),
+            child: hasDone
+                ? _buildResult(scanProv.result!)
+                : _buildScanButton(scanProv),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildCameraView() {
+  /// Affiche le preview caméra en direct (ou fond noir si la caméra se charge).
+  Widget _buildCameraView(ScanProvider scanProv) {
     final screenH = MediaQuery.of(context).size.height;
+    final cameraCtrl = scanProv.camera.controller;
+    final cameraReady = scanProv.camera.isInitialized && cameraCtrl != null;
+
     return Column(
       children: [
-        // Vue caméra (fond noir simulé)
-        Container(
+        SizedBox(
           width: double.infinity,
           height: screenH * 0.55,
-          color: const Color(0xFF0A0E1A),
           child: Stack(
             alignment: Alignment.center,
             children: [
-              // Grille simulée (effet caméra)
-              CustomPaint(
-                size: Size(double.infinity, screenH * 0.55),
-                painter: _GridPainter(),
-              ),
+              // Preview caméra en direct — remplace le fond noir simulé.
+              if (cameraReady)
+                ClipRect(
+                  child: OverflowBox(
+                    alignment: Alignment.center,
+                    child: FittedBox(
+                      fit: BoxFit.cover,
+                      child: SizedBox(
+                        width: screenH * 0.55 / cameraCtrl.value.aspectRatio,
+                        height: screenH * 0.55,
+                        child: CameraPreview(cameraCtrl),
+                      ),
+                    ),
+                  ),
+                )
+              else
+                // Fond noir + grille pendant l'initialisation de la caméra.
+                Container(
+                  color: const Color(0xFF0A0E1A),
+                  child: CustomPaint(
+                    size: Size(double.infinity, screenH * 0.55),
+                    painter: _GridPainter(),
+                  ),
+                ),
 
-              // Cadre de scan
+              // Cadre de scan vert (toujours visible par-dessus la preview).
               Container(
                 width: 280,
                 height: 130,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppColors.greenLight,
-                    width: 2,
-                  ),
+                  border: Border.all(color: AppColors.greenLight, width: 2),
                   color: AppColors.green.withValues(alpha: 0.08),
                 ),
                 child: Stack(
                   children: [
-                    // Coins
                     ..._buildCorners(),
-                    // Ligne de scan animée
-                    if (!_scanned)
+                    // Ligne de scan animée (uniquement quand pas encore de résultat).
+                    if (!scanProv.hasDone)
                       AnimatedBuilder(
                         animation: _lineAnim,
                         builder: (_, __) => Positioned(
@@ -133,14 +162,12 @@ class _ScannerScreenState extends State<ScannerScreen>
                           right: 0,
                           child: Container(
                             height: 2,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  Colors.transparent,
-                                  AppColors.greenLight,
-                                  Colors.transparent,
-                                ],
-                              ),
+                            decoration: const BoxDecoration(
+                              gradient: LinearGradient(colors: [
+                                Colors.transparent,
+                                AppColors.greenLight,
+                                Colors.transparent,
+                              ]),
                             ),
                           ),
                         ),
@@ -149,18 +176,51 @@ class _ScannerScreenState extends State<ScannerScreen>
                 ),
               ),
 
-              // Texte guide
-              Positioned(
-                bottom: 60,
-                child: Text(
-                  'Placez la plaque dans le cadre',
-                  style: GoogleFonts.plusJakartaSans(
-                    color: Colors.white,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
+              // Spinner de chargement caméra.
+              if (!cameraReady && !scanProv.hasError)
+                const Positioned(
+                  bottom: 50,
+                  child: CircularProgressIndicator(
+                    color: AppColors.greenLight, strokeWidth: 2,
                   ),
                 ),
-              ),
+
+              // Texte guide sous le cadre (une fois la caméra prête).
+              if (cameraReady)
+                Positioned(
+                  bottom: 60,
+                  child: Text(
+                    'Placez la plaque dans le cadre',
+                    style: GoogleFonts.plusJakartaSans(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+
+              // Message d'erreur caméra.
+              if (scanProv.hasError && !scanProv.hasDone)
+                Positioned(
+                  bottom: 55,
+                  left: 20,
+                  right: 20,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.danger.withValues(alpha: 0.85),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      scanProv.errorMessage ?? 'Erreur caméra',
+                      style: GoogleFonts.plusJakartaSans(
+                        color: Colors.white, fontSize: 12,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
@@ -174,39 +234,62 @@ class _ScannerScreenState extends State<ScannerScreen>
     const t = 3.0;
     const s = 20.0;
     return [
-      // TL
-      Positioned(top: 0, left: 0,
-          child: _corner(BorderRadius.only(topLeft: Radius.circular(12)), c, t, s, top: true, left: true)),
-      // TR
-      Positioned(top: 0, right: 0,
-          child: _corner(BorderRadius.only(topRight: Radius.circular(12)), c, t, s, top: true, right: true)),
-      // BL
-      Positioned(bottom: 0, left: 0,
-          child: _corner(BorderRadius.only(bottomLeft: Radius.circular(12)), c, t, s, bottom: true, left: true)),
-      // BR
-      Positioned(bottom: 0, right: 0,
-          child: _corner(BorderRadius.only(bottomRight: Radius.circular(12)), c, t, s, bottom: true, right: true)),
+      Positioned(
+          top: 0,
+          left: 0,
+          child: _corner(
+              const BorderRadius.only(topLeft: Radius.circular(12)),
+              c, t, s,
+              top: true, left: true)),
+      Positioned(
+          top: 0,
+          right: 0,
+          child: _corner(
+              const BorderRadius.only(topRight: Radius.circular(12)),
+              c, t, s,
+              top: true, right: true)),
+      Positioned(
+          bottom: 0,
+          left: 0,
+          child: _corner(
+              const BorderRadius.only(bottomLeft: Radius.circular(12)),
+              c, t, s,
+              bottom: true, left: true)),
+      Positioned(
+          bottom: 0,
+          right: 0,
+          child: _corner(
+              const BorderRadius.only(bottomRight: Radius.circular(12)),
+              c, t, s,
+              bottom: true, right: true)),
     ];
   }
 
   Widget _corner(BorderRadius br, Color c, double t, double s,
-      {bool top = false, bool bottom = false, bool left = false, bool right = false}) {
+      {bool top = false,
+      bool bottom = false,
+      bool left = false,
+      bool right = false}) {
     return Container(
       width: s,
       height: s,
       decoration: BoxDecoration(
         border: Border(
-          top:    top    ? BorderSide(color: c, width: t) : BorderSide.none,
+          top: top ? BorderSide(color: c, width: t) : BorderSide.none,
           bottom: bottom ? BorderSide(color: c, width: t) : BorderSide.none,
-          left:   left   ? BorderSide(color: c, width: t) : BorderSide.none,
-          right:  right  ? BorderSide(color: c, width: t) : BorderSide.none,
+          left: left ? BorderSide(color: c, width: t) : BorderSide.none,
+          right: right ? BorderSide(color: c, width: t) : BorderSide.none,
         ),
         borderRadius: br,
       ),
     );
   }
 
-  Widget _buildScanButton() {
+  /// Panneau du bas avant le scan : titre + bouton capture.
+  Widget _buildScanButton(ScanProvider scanProv) {
+    final isSending = scanProv.isSending;
+    final hasError  = scanProv.hasError;
+
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 28, 24, 40),
       decoration: BoxDecoration(
@@ -224,7 +307,8 @@ class _ScannerScreenState extends State<ScannerScreen>
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 40, height: 4,
+            width: 40,
+            height: 4,
             margin: const EdgeInsets.only(bottom: 20),
             decoration: BoxDecoration(
               color: AppColors.border,
@@ -241,9 +325,16 @@ class _ScannerScreenState extends State<ScannerScreen>
           ),
           const SizedBox(height: 6),
           Text(
-            'Appuyez sur le bouton pour simuler un scan',
+            isSending
+                ? 'Analyse en cours... (2-5 secondes)'
+                : hasError
+                    ? scanProv.errorMessage ?? 'Erreur lors du scan'
+                    : 'Appuyez sur le bouton pour capturer et analyser',
             style: GoogleFonts.plusJakartaSans(
-                fontSize: 12, color: AppColors.muted),
+              fontSize: 12,
+              color: hasError ? AppColors.danger : AppColors.muted,
+            ),
+            textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),
           SizedBox(
@@ -252,27 +343,29 @@ class _ScannerScreenState extends State<ScannerScreen>
             child: DecoratedBox(
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [AppColors.green, AppColors.greenDark],
-                ),
+                    colors: [AppColors.green, AppColors.greenDark]),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: ElevatedButton.icon(
-                onPressed: _scanning ? null : _simulateScan,
+                onPressed: (isSending || !scanProv.camera.isInitialized)
+                    ? null
+                    : () => scanProv.captureAndScan(),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.transparent,
                   shadowColor: Colors.transparent,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
                 ),
-                icon: _scanning
+                icon: isSending
                     ? const SizedBox(
-                        width: 18, height: 18,
+                        width: 18,
+                        height: 18,
                         child: CircularProgressIndicator(
                             color: Colors.white, strokeWidth: 2.5))
                     : const Icon(Icons.camera_alt_rounded,
                         color: Colors.white, size: 20),
                 label: Text(
-                  _scanning ? 'Analyse en cours...' : 'Simuler un scan',
+                  isSending ? 'Analyse en cours...' : 'Capturer et scanner',
                   style: GoogleFonts.plusJakartaSans(
                     color: Colors.white,
                     fontWeight: FontWeight.w700,
@@ -287,9 +380,10 @@ class _ScannerScreenState extends State<ScannerScreen>
     );
   }
 
-  Widget _buildResult() {
-    final r = MockData.scanResult;
-    final isOk = r.isAuthorized;
+  /// Panneau du bas après le scan : résultat avec infos véhicule + propriétaire.
+  Widget _buildResult(ScanResult r) {
+    final isOk  = r.authorized;
+    final plate = r.displayPlate;
 
     return Container(
       constraints: BoxConstraints(
@@ -311,11 +405,11 @@ class _ScannerScreenState extends State<ScannerScreen>
         children: [
           // Handle
           Container(
-            width: 40, height: 4,
+            width: 40,
+            height: 4,
             margin: const EdgeInsets.only(top: 12, bottom: 16),
             decoration: BoxDecoration(
-              color: AppColors.border,
-              borderRadius: BorderRadius.circular(2),
+              color: AppColors.border, borderRadius: BorderRadius.circular(2),
             ),
           ),
 
@@ -324,7 +418,7 @@ class _ScannerScreenState extends State<ScannerScreen>
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
               children: [
-                // Plaque simulée
+                // Plaque détectée
                 Container(
                   padding: const EdgeInsets.symmetric(
                       horizontal: 14, vertical: 10),
@@ -333,7 +427,7 @@ class _ScannerScreenState extends State<ScannerScreen>
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
-                    r.plate,
+                    plate.isEmpty ? '???' : plate,
                     style: const TextStyle(
                       fontFamily: 'Courier New',
                       fontSize: 16,
@@ -344,7 +438,6 @@ class _ScannerScreenState extends State<ScannerScreen>
                   ),
                 ),
                 const Spacer(),
-                // Icône statut
                 Container(
                   width: 44,
                   height: 44,
@@ -373,14 +466,32 @@ class _ScannerScreenState extends State<ScannerScreen>
           const SizedBox(height: 14),
           const Divider(height: 1, indent: 20, endIndent: 20),
 
-          // Tableau de détails
+          // Tableau de détails dynamiques
           Flexible(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
               child: Column(
-                children: r.fields
-                    .map((e) => _detailRow(e.key, e.value))
-                    .toList(),
+                children: [
+                  if (r.plateOcr != null)
+                    _detailRow('OCR lu', r.plateOcr!),
+                  if (r.plateMatched != null)
+                    _detailRow('Correspondance', r.plateMatched!),
+                  if (r.similarityScore != null)
+                    _detailRow('Similarite',
+                        '${(r.similarityScore! * 100).toStringAsFixed(0)}%'),
+                  if (r.vehicle?.brand != null)
+                    _detailRow('Marque', r.vehicle!.brand!),
+                  if (r.vehicle?.color != null)
+                    _detailRow('Couleur', r.vehicle!.color!),
+                  if (r.owner != null)
+                    _detailRow('Proprietaire', r.owner!.fullName),
+                  if (r.owner?.service != null)
+                    _detailRow('Service', r.owner!.service!),
+                  if (!isOk && r.reason != null)
+                    _detailRow('Raison', r.reason!),
+                  if (!r.detected)
+                    _detailRow('Statut', 'Plaque non detectee'),
+                ],
               ),
             ),
           ),
@@ -389,7 +500,7 @@ class _ScannerScreenState extends State<ScannerScreen>
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
             child: OutlinedButton.icon(
-              onPressed: _reset,
+              onPressed: () => context.read<ScanProvider>().reset(),
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: AppColors.primary, width: 1.5),
                 shape: RoundedRectangleBorder(
@@ -419,7 +530,7 @@ class _ScannerScreenState extends State<ScannerScreen>
       child: Row(
         children: [
           SizedBox(
-            width: 100,
+            width: 110,
             child: Text(
               key,
               style: GoogleFonts.plusJakartaSans(

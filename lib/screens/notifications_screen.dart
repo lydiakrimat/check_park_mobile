@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../models/mock_data.dart';
+import 'package:provider/provider.dart';
+import '../providers/notification_provider.dart';
 import '../theme/app_colors.dart';
 import '../widgets/at_header.dart';
 import '../widgets/notification_card.dart';
 
+/// Écran des notifications de sécurité.
+///
+/// Charge les notifications depuis Laravel via NotificationProvider.
+/// Permet de marquer comme lu et de supprimer.
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
 
@@ -13,51 +18,32 @@ class NotificationsScreen extends StatefulWidget {
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
-  // Copie locale pour gérer les mutations UI
-  late List<NotificationEntry> _items;
-
   @override
   void initState() {
     super.initState();
-    _items = List.from(MockData.notifications);
-  }
-
-  int get _unread => _items.where((e) => !e.isRead).length;
-
-  void _markRead(String id) {
-    setState(() {
-      final i = _items.indexWhere((e) => e.id == id);
-      if (i != -1) _items[i].isRead = true;
-    });
-  }
-
-  void _delete(String id) {
-    setState(() => _items.removeWhere((e) => e.id == id));
-  }
-
-  void _markAll() {
-    setState(() {
-      for (final e in _items) {
-        e.isRead = true;
-      }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<NotificationProvider>().fetch();
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final notifProv = context.watch<NotificationProvider>();
+    final unread = notifProv.unreadCount;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Column(
         children: [
-          // ── En-tête gradient ──
+          // En-tête gradient
           ATHeader(
             title: 'Notifications',
-            subtitle: '$_unread non lue(s)',
+            subtitle: '$unread non lue(s)',
             showBack: true,
             actions: [
-              if (_unread > 0)
+              if (unread > 0)
                 GestureDetector(
-                  onTap: _markAll,
+                  onTap: () => notifProv.markAllAsRead(),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 10, vertical: 6),
@@ -78,23 +64,31 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             ],
           ),
 
-          // ── Liste ──
+          // Contenu
           Expanded(
-            child: _items.isEmpty
-                ? _emptyState()
-                : ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                    physics: const BouncingScrollPhysics(),
-                    itemCount: _items.length,
-                    itemBuilder: (_, i) {
-                      final entry = _items[i];
-                      return NotificationCard(
-                        entry: entry,
-                        onMarkRead: () => _markRead(entry.id),
-                        onDelete:   () => _delete(entry.id),
-                      );
-                    },
-                  ),
+            child: notifProv.loading
+                ? const Center(
+                    child: CircularProgressIndicator(color: AppColors.primary))
+                : notifProv.notifications.isEmpty
+                    ? _emptyState()
+                    : RefreshIndicator(
+                        color: AppColors.primary,
+                        onRefresh: () => notifProv.fetch(),
+                        child: ListView.builder(
+                          padding:
+                              const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          itemCount: notifProv.notifications.length,
+                          itemBuilder: (_, i) {
+                            final entry = notifProv.notifications[i];
+                            return NotificationCard(
+                              entry: entry,
+                              onMarkRead: () => notifProv.markAsRead(entry.id),
+                              onDelete: () => notifProv.delete(entry.id),
+                            );
+                          },
+                        ),
+                      ),
           ),
         ],
       ),
@@ -107,7 +101,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 72, height: 72,
+            width: 72,
+            height: 72,
             decoration: BoxDecoration(
               color: AppColors.background,
               shape: BoxShape.circle,
@@ -127,7 +122,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           ),
           const SizedBox(height: 6),
           Text(
-            'Toutes les notifications ont été traitées',
+            'Toutes les notifications ont ete traitees',
             style: GoogleFonts.plusJakartaSans(
                 fontSize: 12, color: AppColors.muted),
           ),

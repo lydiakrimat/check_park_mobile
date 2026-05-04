@@ -1,22 +1,68 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../models/mock_data.dart';
+import 'package:provider/provider.dart';
+import '../providers/history_provider.dart';
+import '../providers/statistics_provider.dart';
 import '../theme/app_colors.dart';
 import '../widgets/stat_card.dart';
 
-class StatsScreen extends StatelessWidget {
+/// Écran des statistiques d'accès.
+///
+/// Les stats sont calculées localement par StatisticsProvider
+/// à partir des données d'historique chargées par HistoryProvider.
+class StatsScreen extends StatefulWidget {
   const StatsScreen({super.key});
 
   @override
+  State<StatsScreen> createState() => _StatsScreenState();
+}
+
+class _StatsScreenState extends State<StatsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Charge l'historique si pas encore fait, puis calcule les stats.
+      final histProv = context.read<HistoryProvider>();
+      if (histProv.allRecords.isEmpty && !histProv.loading) {
+        histProv.fetch().then((_) {
+          if (mounted) {
+            context.read<StatisticsProvider>().compute(histProv.allRecords);
+          }
+        });
+      } else {
+        context.read<StatisticsProvider>().compute(histProv.allRecords);
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final statsProv = context.watch<StatisticsProvider>();
+    final histProv  = context.watch<HistoryProvider>();
+    final stats = statsProv.stats;
+
+    if (histProv.loading || stats == null) {
+      return const Center(
+          child: CircularProgressIndicator(color: AppColors.primary));
+    }
+
+    // Calcul des pourcentages pour le PieChart.
+    final pctAutorise = stats.pctAutorise;
+    final pctRefuse   = stats.pctRefuse;
+
+    // Valeur maximale des 7 derniers jours (pour normaliser les barres).
+    final maxCount = stats.last7Days
+        .map((d) => d.count)
+        .fold(0, (a, b) => a > b ? a : b);
+
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Titre
           Text(
             'Statistiques',
             style: GoogleFonts.playfairDisplay(
@@ -27,19 +73,19 @@ class StatsScreen extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'Tableau de bord des scans',
+            'Tableau de bord des acces',
             style: GoogleFonts.plusJakartaSans(
                 fontSize: 12, color: AppColors.muted),
           ),
           const SizedBox(height: 20),
 
-          // ── 3 cartes KPI ──
+          // 3 KPIs
           Row(
             children: [
               Expanded(
                 child: StatCard(
-                  label: 'Scanner',
-                  value: '${MockData.statTotalScans}',
+                  label: 'Total scans',
+                  value: '${stats.total}',
                   icon: Icons.camera_alt_rounded,
                   color: AppColors.primary,
                 ),
@@ -47,18 +93,18 @@ class StatsScreen extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: StatCard(
-                  label: 'Existant',
-                  value: '${MockData.statExisting}',
-                  icon: Icons.directions_car_rounded,
+                  label: 'Autorises',
+                  value: '${stats.autorises}',
+                  icon: Icons.check_circle_rounded,
                   color: AppColors.green,
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: StatCard(
-                  label: 'Inexistant',
-                  value: '${MockData.statNonExisting}',
-                  icon: Icons.no_transfer_rounded,
+                  label: 'Refuses',
+                  value: '${stats.refuses + stats.expires}',
+                  icon: Icons.cancel_rounded,
                   color: AppColors.danger,
                 ),
               ),
@@ -66,7 +112,7 @@ class StatsScreen extends StatelessWidget {
           ),
           const SizedBox(height: 24),
 
-          // ── Graphique circulaire ──
+          // PieChart
           _sectionLabel('REPARTITION DES VEHICULES'),
           const SizedBox(height: 14),
           Container(
@@ -86,49 +132,56 @@ class StatsScreen extends StatelessWidget {
               children: [
                 SizedBox(
                   height: 200,
-                  child: PieChart(
-                    PieChartData(
-                      sectionsSpace: 3,
-                      centerSpaceRadius: 48,
-                      sections: [
-                        PieChartSectionData(
-                          value: MockData.pieExistingPct,
-                          title:
-                              '${MockData.pieExistingPct.toInt()}%',
-                          color: AppColors.primary,
-                          radius: 70,
-                          titleStyle: GoogleFonts.plusJakartaSans(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
+                  child: stats.total == 0
+                      ? Center(
+                          child: Text(
+                            'Aucune donnee',
+                            style: GoogleFonts.plusJakartaSans(
+                                color: AppColors.muted),
+                          ),
+                        )
+                      : PieChart(
+                          PieChartData(
+                            sectionsSpace: 3,
+                            centerSpaceRadius: 48,
+                            sections: [
+                              PieChartSectionData(
+                                value: pctAutorise,
+                                title: '${pctAutorise.toInt()}%',
+                                color: AppColors.primary,
+                                radius: 70,
+                                titleStyle: GoogleFonts.plusJakartaSans(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              PieChartSectionData(
+                                value: pctRefuse > 0 ? pctRefuse : 0.01,
+                                title: pctRefuse > 0
+                                    ? '${pctRefuse.toInt()}%'
+                                    : '',
+                                color: AppColors.primaryLight,
+                                radius: 70,
+                                titleStyle: GoogleFonts.plusJakartaSans(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        PieChartSectionData(
-                          value: MockData.pieNonExistingPct,
-                          title:
-                              '${MockData.pieNonExistingPct.toInt()}%',
-                          color: AppColors.primaryLight,
-                          radius: 70,
-                          titleStyle: GoogleFonts.plusJakartaSans(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
                 ),
                 const SizedBox(height: 20),
-                // Légende
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _legendItem(AppColors.primary, 'Existant',
-                        '${MockData.pieExistingPct.toInt()}%'),
+                    _legendItem(AppColors.primary, 'Autorises',
+                        '${pctAutorise.toInt()}%'),
                     const SizedBox(width: 24),
-                    _legendItem(AppColors.primaryLight, 'Inexistant',
-                        '${MockData.pieNonExistingPct.toInt()}%'),
+                    _legendItem(AppColors.primaryLight, 'Refuses',
+                        '${pctRefuse.toInt()}%'),
                   ],
                 ),
               ],
@@ -136,7 +189,7 @@ class StatsScreen extends StatelessWidget {
           ),
           const SizedBox(height: 24),
 
-          // ── Graphique barres simples ──
+          // Graphique barres 7 jours
           _sectionLabel('SCANS PAR JOUR (7 derniers jours)'),
           const SizedBox(height: 14),
           Container(
@@ -152,22 +205,13 @@ class StatsScreen extends StatelessWidget {
                 ),
               ],
             ),
-            child: Column(
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _bar('Lun', 0.55),
-                    _bar('Mar', 0.80),
-                    _bar('Mer', 0.40),
-                    _bar('Jeu', 0.90),
-                    _bar('Ven', 0.65),
-                    _bar('Sam', 0.25),
-                    _bar('Dim', 0.15),
-                  ],
-                ),
-              ],
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: stats.last7Days.map((day) {
+                final pct = maxCount > 0 ? day.count / maxCount : 0.0;
+                return _bar(day.label, pct.clamp(0.05, 1.0));
+              }).toList(),
             ),
           ),
         ],

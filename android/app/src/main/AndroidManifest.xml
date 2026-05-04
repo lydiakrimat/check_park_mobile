@@ -1,4 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Permission caméra — requise par le package camera pour scanner les plaques -->
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <!-- Accès Internet — requise pour les appels HTTP vers Laravel et le AI Service -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="check_park_mobile"
         android:name="${applicationName}"

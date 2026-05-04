@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
 import '../theme/app_colors.dart';
-import 'login_screen.dart';
 
+/// Écran des paramètres — profil de l'agent connecté + préférences + déconnexion.
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -16,6 +18,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Récupère le user connecté depuis AuthProvider.
+    final user = context.watch<AuthProvider>().user;
+
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
@@ -23,7 +28,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Paramètres',
+            'Parametres',
             style: GoogleFonts.playfairDisplay(
               fontSize: 22,
               fontWeight: FontWeight.w800,
@@ -32,7 +37,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            'Configuration du système',
+            'Configuration du systeme',
             style: GoogleFonts.plusJakartaSans(
               fontSize: 12,
               color: AppColors.muted,
@@ -40,13 +45,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 24),
 
-          // ── Profil ──
+          // Profil de l'agent connecté
           _sectionLabel('PROFIL'),
           const SizedBox(height: 10),
-          _profileCard(),
+          _profileCard(
+            initials: user?.initials ?? '?',
+            fullName: user?.fullName ?? 'Agent',
+            email: user?.email ?? '',
+          ),
           const SizedBox(height: 24),
 
-          // ── Apparence ──
+          // Apparence (préférence locale uniquement)
           _sectionLabel('APPARENCE'),
           const SizedBox(height: 10),
           _card(
@@ -109,7 +118,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 24),
 
-          // ── Langue ──
+          // Langue
           _sectionLabel('LANGUE'),
           const SizedBox(height: 10),
           _card(
@@ -123,41 +132,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 24),
 
-          // ── A propos ──
+          // A propos
           _sectionLabel('A PROPOS'),
           const SizedBox(height: 10),
           _card(
             child: Column(
               children: [
-                _infoRow(
-                  Icons.info_outline_rounded,
-                  'Application',
-                  'ALPR Mobile',
-                ),
+                _infoRow(Icons.info_outline_rounded, 'Application', 'ALPR Mobile'),
                 _infoRow(Icons.tag_rounded, 'Version', '1.0.0'),
-                // _infoRow(Icons.school_outlined, 'Projet',
-                //     'Fin d\'Etudes'),
-                _infoRow(
-                  Icons.business_rounded,
-                  'Organisation',
-                  'Algérie Télécom',
-                ),
-                _infoRow(Icons.code_rounded, 'Stack', 'Flutter + Laravel 11'),
+                _infoRow(Icons.business_rounded, 'Organisation', 'Algerie Telecom'),
+                _infoRow(Icons.code_rounded, 'Stack', 'Flutter + Laravel 12'),
               ],
             ),
           ),
           const SizedBox(height: 32),
 
-          // ── Déconnexion ──
+          // Bouton déconnexion — appelle AuthProvider.logout()
+          // qui supprime le token et déclenche la navigation vers LoginScreen
+          // automatiquement via le router dans app.dart.
           SizedBox(
             width: double.infinity,
             height: 52,
             child: OutlinedButton.icon(
-              onPressed: () {
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
-                  (_) => false,
-                );
+              onPressed: () async {
+                await context.read<AuthProvider>().logout();
+                // Le routeur dans app.dart gère la navigation automatiquement.
               },
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: AppColors.danger, width: 1.5),
@@ -172,7 +171,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 size: 20,
               ),
               label: Text(
-                'Se déconnecter',
+                'Se deconnecter',
                 style: GoogleFonts.plusJakartaSans(
                   color: AppColors.danger,
                   fontWeight: FontWeight.w700,
@@ -181,17 +180,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
           ),
-          SizedBox(height: 110),
+          const SizedBox(height: 110),
         ],
       ),
     );
   }
 
-  Widget _profileCard() {
+  Widget _profileCard({
+    required String initials,
+    required String fullName,
+    required String email,
+  }) {
     return _card(
       child: Column(
         children: [
-          // Avatar + infos
           Row(
             children: [
               Container(
@@ -207,7 +209,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 child: Center(
                   child: Text(
-                    'HY',
+                    initials,
                     style: GoogleFonts.plusJakartaSans(
                       color: Colors.white,
                       fontSize: 18,
@@ -222,7 +224,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Hamidi Yacine',
+                      fullName,
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
@@ -240,7 +242,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
-                        'Agent de Sécurité',
+                        'Agent de Securite',
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
@@ -256,9 +258,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 14),
           const Divider(height: 1),
           const SizedBox(height: 14),
-          _infoRow(Icons.email_outlined, 'Email', 'garde@algerietelecom.dz'),
+          if (email.isNotEmpty)
+            _infoRow(Icons.email_outlined, 'Email', email),
           const SizedBox(height: 10),
-          // Bouton modifier profil
           SizedBox(
             width: double.infinity,
             height: 42,
@@ -386,12 +388,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _sectionLabel(String t) => Text(
-    t,
-    style: GoogleFonts.plusJakartaSans(
-      fontSize: 10,
-      fontWeight: FontWeight.w700,
-      color: AppColors.muted,
-      letterSpacing: 1.0,
-    ),
-  );
+        t,
+        style: GoogleFonts.plusJakartaSans(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          color: AppColors.muted,
+          letterSpacing: 1.0,
+        ),
+      );
 }

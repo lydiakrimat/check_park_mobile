@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../models/mock_data.dart';
+import '../models/notification_model.dart';
 import '../theme/app_colors.dart';
+import '../utils/date_formatter.dart';
 
 /// Carte de notification avec actions (marquer lu / supprimer).
 class NotificationCard extends StatelessWidget {
-  final NotificationEntry entry;
+  final NotificationModel entry;
   final VoidCallback onMarkRead;
   final VoidCallback onDelete;
 
@@ -18,28 +19,25 @@ class NotificationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isWarning = entry.type == 'warning';
+    // Détermine la couleur selon le type de notification.
+    final isWarning = entry.type == 'acces_expire';
     final accentColor = isWarning ? AppColors.warning : AppColors.danger;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: entry.isRead
-            ? AppColors.white
-            : AppColors.white,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border(
           left: BorderSide(
-            color: entry.isRead
-                ? AppColors.border
-                : accentColor,
-            width: entry.isRead ? 1 : 3,
+            color: entry.lu ? AppColors.border : accentColor,
+            width: entry.lu ? 1 : 3,
           ),
           top: BorderSide(color: AppColors.border, width: 1),
           right: BorderSide(color: AppColors.border, width: 1),
           bottom: BorderSide(color: AppColors.border, width: 1),
         ),
-        boxShadow: entry.isRead
+        boxShadow: entry.lu
             ? null
             : [
                 BoxShadow(
@@ -81,17 +79,17 @@ class NotificationCard extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          entry.title,
+                          entry.titre,
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 13,
-                            fontWeight: entry.isRead
+                            fontWeight: entry.lu
                                 ? FontWeight.w600
                                 : FontWeight.w800,
                             color: AppColors.text,
                           ),
                         ),
                       ),
-                      if (!entry.isRead)
+                      if (!entry.lu)
                         Container(
                           width: 8,
                           height: 8,
@@ -115,15 +113,15 @@ class NotificationCard extends StatelessWidget {
                   Row(
                     children: [
                       Text(
-                        entry.time,
+                        DateFormatter.relative(entry.createdAt),
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 10,
                           color: AppColors.muted,
                         ),
                       ),
                       const Spacer(),
-                      // Marquer lu
-                      if (!entry.isRead)
+                      // Bouton marquer lu
+                      if (!entry.lu)
                         GestureDetector(
                           onTap: onMarkRead,
                           child: Container(
@@ -138,7 +136,7 @@ class NotificationCard extends StatelessWidget {
                           ),
                         ),
                       const SizedBox(width: 6),
-                      // Supprimer
+                      // Bouton supprimer
                       GestureDetector(
                         onTap: onDelete,
                         child: Container(

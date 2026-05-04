@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../models/mock_data.dart';
+import 'package:provider/provider.dart';
+import '../providers/history_provider.dart';
 import '../theme/app_colors.dart';
 import '../widgets/access_card.dart';
 
+/// Écran de l'historique des accès (entrées/sorties).
+///
+/// Charge les données depuis Laravel via HistoryProvider.
+/// Supporte la recherche par nom/plaque et les filtres par statut.
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
 
@@ -13,19 +18,16 @@ class HistoryScreen extends StatefulWidget {
 
 class _HistoryScreenState extends State<HistoryScreen> {
   final _searchCtrl = TextEditingController();
-  String _filterStatus = 'Tous';
-  String _query = '';
 
   static const _filters = ['Tous', 'Autorise', 'Refuse', 'Expire'];
 
-  List<AccessEntry> get _filtered {
-    return MockData.accessHistory.where((e) {
-      final matchQ = _query.isEmpty ||
-          e.displayName.toLowerCase().contains(_query.toLowerCase()) ||
-          e.plate.toLowerCase().contains(_query.toLowerCase());
-      final matchF = _filterStatus == 'Tous' || e.status == _filterStatus;
-      return matchQ && matchF;
-    }).toList();
+  @override
+  void initState() {
+    super.initState();
+    // Chargement initial des données depuis Laravel.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<HistoryProvider>().fetch();
+    });
   }
 
   @override
@@ -36,19 +38,21 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final items = _filtered;
+    final histProv = context.watch<HistoryProvider>();
+    final items = histProv.filteredRecords;
+    final activeFilter = histProv.statusFilter ?? 'Tous';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── Barre de recherche + filtre ──
+        // Barre de recherche + filtres
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Titre
               Text(
-                'Historique des Accès',
+                'Historique des Acces',
                 style: GoogleFonts.playfairDisplay(
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
@@ -57,16 +61,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                'Employés et visiteurs — ${items.length} entrée(s)',
+                histProv.loading
+                    ? 'Chargement...'
+                    : '${items.length} entree(s)',
                 style: GoogleFonts.plusJakartaSans(
                     fontSize: 12, color: AppColors.muted),
               ),
               const SizedBox(height: 14),
 
-              // Recherche
+              // Champ de recherche
               TextField(
                 controller: _searchCtrl,
-                onChanged: (v) => setState(() => _query = v),
+                onChanged: (v) => context.read<HistoryProvider>().setSearch(v),
                 style: GoogleFonts.plusJakartaSans(
                     fontSize: 14, color: AppColors.text),
                 decoration: InputDecoration(
@@ -78,13 +84,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     child: Icon(Icons.search_rounded,
                         color: AppColors.primary, size: 20),
                   ),
-                  suffixIcon: _query.isNotEmpty
+                  suffixIcon: histProv.searchQuery.isNotEmpty
                       ? IconButton(
                           icon: const Icon(Icons.close_rounded,
                               size: 18, color: AppColors.muted),
                           onPressed: () {
                             _searchCtrl.clear();
-                            setState(() => _query = '');
+                            context.read<HistoryProvider>().setSearch('');
                           },
                         )
                       : null,
@@ -104,7 +110,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               ),
               const SizedBox(height: 10),
 
-              // Filtres statut
+              // Chips de filtre par statut
               SizedBox(
                 height: 34,
                 child: ListView.separated(
@@ -113,22 +119,23 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   separatorBuilder: (_, __) => const SizedBox(width: 8),
                   itemBuilder: (_, i) {
                     final f = _filters[i];
-                    final active = _filterStatus == f;
+                    final active = activeFilter == f ||
+                        (f == 'Tous' && histProv.statusFilter == null);
                     return GestureDetector(
-                      onTap: () => setState(() => _filterStatus = f),
+                      onTap: () {
+                        context
+                            .read<HistoryProvider>()
+                            .setStatusFilter(f == 'Tous' ? null : f);
+                      },
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 180),
                         padding: const EdgeInsets.symmetric(
                             horizontal: 14, vertical: 6),
                         decoration: BoxDecoration(
-                          color: active
-                              ? AppColors.primary
-                              : AppColors.white,
+                          color: active ? AppColors.primary : AppColors.white,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: active
-                                ? AppColors.primary
-                                : AppColors.border,
+                            color: active ? AppColors.primary : AppColors.border,
                             width: 1.5,
                           ),
                         ),
@@ -150,16 +157,28 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ),
         ),
 
-        // ── Liste ──
+        // Liste ou état vide
         Expanded(
-          child: items.isEmpty
-              ? _emptyState()
-              : ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-                  physics: const BouncingScrollPhysics(),
-                  itemCount: items.length,
-                  itemBuilder: (_, i) => AccessCard(entry: items[i]),
-                ),
+          child: histProv.loading
+              ? const Center(
+                  child: CircularProgressIndicator(color: AppColors.primary))
+              : histProv.errorMessage != null
+                  ? _errorState(histProv.errorMessage!)
+                  : items.isEmpty
+                      ? _emptyState()
+                      : RefreshIndicator(
+                          color: AppColors.primary,
+                          onRefresh: () =>
+                              context.read<HistoryProvider>().fetch(),
+                          child: ListView.builder(
+                            padding:
+                                const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            itemCount: items.length,
+                            itemBuilder: (_, i) =>
+                                AccessCard(entry: items[i]),
+                          ),
+                        ),
         ),
       ],
     );
@@ -174,11 +193,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
               size: 52, color: AppColors.border),
           const SizedBox(height: 14),
           Text(
-            'Aucune entrée trouvée',
+            'Aucune entree trouvee',
             style: GoogleFonts.plusJakartaSans(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: AppColors.text,
+              fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.text,
             ),
           ),
           const SizedBox(height: 6),
@@ -188,6 +205,33 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 fontSize: 12, color: AppColors.muted),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _errorState(String message) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.cloud_off_rounded,
+                size: 48, color: AppColors.muted),
+            const SizedBox(height: 14),
+            Text(
+              message,
+              style: GoogleFonts.plusJakartaSans(
+                  fontSize: 13, color: AppColors.muted),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            OutlinedButton(
+              onPressed: () => context.read<HistoryProvider>().fetch(),
+              child: const Text('Reessayer'),
+            ),
+          ],
+        ),
       ),
     );
   }

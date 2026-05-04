@@ -36,6 +36,18 @@ dependencies:
   fl_chart: ^0.70.0
   font_awesome_flutter: ^10.0.0
 
+  # Réseau — requêtes HTTP vers Laravel et vers le AI Service
+  http: ^1.2.2
+
+  # Stockage local — token JWT, préférences utilisateur
+  shared_preferences: ^2.3.4
+
+  # Caméra — capture de photos pour le scanner de plaques
+  camera: ^0.11.0+2
+
+  # Gestion d'état
+  provider: ^6.1.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

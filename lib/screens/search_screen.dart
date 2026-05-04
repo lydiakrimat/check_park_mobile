@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../models/mock_data.dart';
+import 'package:provider/provider.dart';
+import '../providers/scan_provider.dart';
+import '../models/scan_result.dart';
 import '../theme/app_colors.dart';
 
+/// Écran de recherche manuelle par numéro de plaque.
+///
+/// L'agent saisit un numéro de plaque au clavier.
+/// L'app envoie le texte au AI Service via POST /verify (sans photo)
+/// et affiche le résultat identique à celui du scanner caméra.
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
 
@@ -12,8 +19,6 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   final _ctrl = TextEditingController();
-  bool _hasResult = false;
-  bool _loading   = false;
 
   @override
   void dispose() {
@@ -24,21 +29,24 @@ class _SearchScreenState extends State<SearchScreen> {
   Future<void> _search() async {
     if (_ctrl.text.trim().isEmpty) return;
     FocusScope.of(context).unfocus();
-    setState(() { _loading = true; _hasResult = false; });
-    await Future.delayed(const Duration(milliseconds: 600));
-    if (!mounted) return;
-    setState(() { _loading = false; _hasResult = true; });
+    // Appel au AI Service via le ScanProvider (méthode verifyByText).
+    await context.read<ScanProvider>().verifyByText(_ctrl.text.trim());
   }
 
   @override
   Widget build(BuildContext context) {
+    final scanProv = context.watch<ScanProvider>();
+    final isSending = scanProv.isSending;
+    final hasDone   = scanProv.hasDone;
+    final hasError  = scanProv.hasError;
+
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Champ de recherche ──
+          // Titre
           Text(
             'Recherche matricule',
             style: GoogleFonts.playfairDisplay(
@@ -49,21 +57,23 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
           const SizedBox(height: 6),
           Text(
-            'Saisir le numéro de matricule du véhicule',
+            'Saisir le numero de matricule du vehicule',
             style: GoogleFonts.plusJakartaSans(
                 fontSize: 12, color: AppColors.muted),
           ),
           const SizedBox(height: 18),
 
+          // Champ de saisie + bouton
           Row(
             children: [
               Expanded(
                 child: TextField(
                   controller: _ctrl,
+                  textCapitalization: TextCapitalization.characters,
                   style: GoogleFonts.plusJakartaSans(
                       fontSize: 14, color: AppColors.text),
                   decoration: InputDecoration(
-                    hintText: 'Ex: 131952-118-16',
+                    hintText: 'Ex: ALG288',
                     filled: true,
                     fillColor: AppColors.white,
                     prefixIcon: const Padding(
@@ -71,6 +81,17 @@ class _SearchScreenState extends State<SearchScreen> {
                       child: Icon(Icons.search_rounded,
                           color: AppColors.primary, size: 20),
                     ),
+                    // Bouton effacer si du texte est present
+                    suffixIcon: _ctrl.text.isNotEmpty
+                        ? GestureDetector(
+                            onTap: () {
+                              _ctrl.clear();
+                              context.read<ScanProvider>().reset();
+                            },
+                            child: const Icon(Icons.clear_rounded,
+                                color: AppColors.muted, size: 18),
+                          )
+                        : null,
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: const BorderSide(
@@ -84,6 +105,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     contentPadding: const EdgeInsets.symmetric(
                         vertical: 14, horizontal: 4),
                   ),
+                  onChanged: (_) => setState(() {}), // rafraichit le bouton clear
                   onSubmitted: (_) => _search(),
                 ),
               ),
@@ -98,7 +120,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: ElevatedButton(
-                    onPressed: _loading ? null : _search,
+                    onPressed: isSending ? null : _search,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.transparent,
                       shadowColor: Colors.transparent,
@@ -106,9 +128,10 @@ class _SearchScreenState extends State<SearchScreen> {
                           borderRadius: BorderRadius.circular(12)),
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                     ),
-                    child: _loading
+                    child: isSending
                         ? const SizedBox(
-                            width: 18, height: 18,
+                            width: 18,
+                            height: 18,
                             child: CircularProgressIndicator(
                                 color: Colors.white, strokeWidth: 2.5))
                         : Text(
@@ -126,14 +149,14 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
           const SizedBox(height: 28),
 
-          // ── Séparateur + section résultat ──
+          // Séparateur
           Row(
             children: [
               const Expanded(child: Divider()),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: Text(
-                  'RÉSULTAT DE RECHERCHE',
+                  'RESULTAT DE RECHERCHE',
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
@@ -147,10 +170,13 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
           const SizedBox(height: 16),
 
-          if (!_hasResult && !_loading)
-            _emptyState()
-          else if (_hasResult)
-            _resultCard(),
+          // Contenu selon l'état
+          if (hasError)
+            _errorState(scanProv.errorMessage ?? 'Erreur lors de la recherche')
+          else if (hasDone && scanProv.result != null)
+            _resultCard(scanProv.result!)
+          else
+            _emptyState(),
         ],
       ),
     );
@@ -175,7 +201,7 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              'Aucun résultat',
+              'Aucun resultat',
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
@@ -195,8 +221,39 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  Widget _resultCard() {
-    final r = MockData.searchResult;
+  Widget _errorState(String message) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 32),
+        child: Column(
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: AppColors.noBg,
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.danger.withValues(alpha: 0.3)),
+              ),
+              child: const Icon(Icons.error_outline_rounded,
+                  size: 32, color: AppColors.danger),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              message,
+              style: GoogleFonts.plusJakartaSans(
+                  fontSize: 13, color: AppColors.danger),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _resultCard(ScanResult r) {
+    final isOk = r.authorized;
+
     return Container(
       decoration: BoxDecoration(
         color: AppColors.white,
@@ -211,13 +268,13 @@ class _SearchScreenState extends State<SearchScreen> {
       ),
       child: Column(
         children: [
-          // En-tête carte
+          // En-tête
           Container(
-            padding: const EdgeInsets.symmetric(
-                horizontal: 16, vertical: 14),
-            decoration: const BoxDecoration(
-              color: AppColors.blueTint,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: isOk ? AppColors.greenTint : AppColors.redTint,
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(16)),
             ),
             child: Row(
               children: [
@@ -225,11 +282,16 @@ class _SearchScreenState extends State<SearchScreen> {
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.12),
+                    color: isOk
+                        ? AppColors.okBg
+                        : AppColors.noBg,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.person_rounded,
-                      color: AppColors.primary, size: 22),
+                  child: Icon(
+                    isOk ? Icons.check_rounded : Icons.close_rounded,
+                    color: isOk ? AppColors.okText : AppColors.noText,
+                    size: 22,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -238,40 +300,35 @@ class _SearchScreenState extends State<SearchScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        '${r.name} ${r.firstName}',
-                        softWrap: true,
+                        r.owner?.fullName ?? r.displayPlate,
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 15,
                           fontWeight: FontWeight.w800,
                           color: AppColors.text,
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        r.service,
-                        softWrap: true,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.plusJakartaSans(
-                            fontSize: 12, color: AppColors.primary),
-                      ),
+                      if (r.owner?.service != null)
+                        Text(
+                          r.owner!.service!,
+                          style: GoogleFonts.plusJakartaSans(
+                              fontSize: 12, color: AppColors.primary),
+                        ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 12),
                 Container(
                   padding: const EdgeInsets.symmetric(
                       horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: AppColors.okBg,
+                    color: isOk ? AppColors.okBg : AppColors.noBg,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    'Trouve',
+                    isOk ? 'Autorise' : 'Refuse',
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: AppColors.okText,
+                      color: isOk ? AppColors.okText : AppColors.noText,
                     ),
                   ),
                 ),
@@ -279,13 +336,27 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
           ),
 
-          // Tableau clé / valeur
+          // Tableau de données
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
-              children: r.fields
-                  .map((e) => _row(e.key, e.value))
-                  .toList(),
+              children: [
+                if (r.displayPlate.isNotEmpty)
+                  _row('Matricule', r.displayPlate),
+                if (r.vehicle?.brand != null)
+                  _row('Marque', r.vehicle!.brand!),
+                if (r.vehicle?.color != null)
+                  _row('Couleur', r.vehicle!.color!),
+                if (r.owner != null)
+                  _row('Proprietaire', r.owner!.fullName),
+                if (r.owner?.service != null)
+                  _row('Service', r.owner!.service!),
+                if (r.similarityScore != null)
+                  _row('Similarite',
+                      '${(r.similarityScore! * 100).toStringAsFixed(0)}%'),
+                if (!r.detected)
+                  _row('Statut', 'Plaque non trouvee en base'),
+              ],
             ),
           ),
         ],
