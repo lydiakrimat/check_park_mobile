@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import '../theme/app_colors.dart';
-import 'home_screen.dart';
+import '../providers/auth_provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -50,17 +51,32 @@ class _LoginScreenState extends State<LoginScreen>
       return;
     }
     setState(() => _loading = true);
-    await Future.delayed(const Duration(seconds: 1));
+
+    // Appel au AuthProvider qui contacte le backend Laravel.
+    final success = await context.read<AuthProvider>().login(
+      _userCtrl.text.trim(),
+      _passCtrl.text,
+    );
+
     if (!mounted) return;
     setState(() => _loading = false);
-    Navigator.of(context).pushReplacement(
-      PageRouteBuilder(
-        pageBuilder: (_, __, ___) => const HomeScreen(),
-        transitionsBuilder: (_, anim, __, child) =>
-            FadeTransition(opacity: anim, child: child),
-        transitionDuration: const Duration(milliseconds: 400),
-      ),
-    );
+
+    if (!success) {
+      // Affiche le message d'erreur retourné par le serveur.
+      final errorMsg = context.read<AuthProvider>().errorMessage ??
+          'Identifiants incorrects.';
+      _shakeCtrl.forward(from: 0);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errorMsg,
+              style: GoogleFonts.plusJakartaSans(color: Colors.white)),
+          backgroundColor: AppColors.danger,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+    // Si success = true, le router dans app.dart navigue automatiquement
+    // vers HomeScreen car AuthProvider.status passe à authenticated.
   }
 
   @override
@@ -102,13 +118,14 @@ class _LoginScreenState extends State<LoginScreen>
                     ),
                     const SizedBox(height: 28),
 
-                    // Nom d'utilisateur
-                    _label('NOM D\'UTILISATEUR'),
+                    // Email (identifiant de connexion)
+                    _label('ADRESSE EMAIL'),
                     const SizedBox(height: 6),
                     _inputField(
                       ctrl: _userCtrl,
-                      hint: 'Entrez votre identifiant',
-                      icon: Icons.person_outline_rounded,
+                      hint: 'Entrez votre adresse email',
+                      icon: Icons.email_outlined,
+                      keyboardType: TextInputType.emailAddress,
                       validator: (v) => (v == null || v.trim().isEmpty)
                           ? 'Champ obligatoire'
                           : null,
@@ -362,11 +379,13 @@ class _LoginScreenState extends State<LoginScreen>
     required IconData icon,
     bool obscure = false,
     Widget? suffix,
+    TextInputType? keyboardType,
     String? Function(String?)? validator,
   }) {
     return TextFormField(
       controller: ctrl,
       obscureText: obscure,
+      keyboardType: keyboardType,
       style: GoogleFonts.plusJakartaSans(fontSize: 14, color: AppColors.text),
       validator: validator,
       decoration: InputDecoration(

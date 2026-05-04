@@ -1,24 +1,77 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'screens/splash_screen.dart';
-import 'theme/app_theme.dart';
+import 'package:provider/provider.dart';
 
-void main() {
+import 'app.dart';
+import 'services/auth_service.dart';
+import 'services/access_service.dart';
+import 'services/notification_service.dart';
+import 'services/scan_service.dart';
+import 'services/camera_service.dart';
+import 'services/statistics_service.dart';
+import 'services/api_service.dart';
+import 'providers/auth_provider.dart';
+import 'providers/scan_provider.dart';
+import 'providers/history_provider.dart';
+import 'providers/notification_provider.dart';
+import 'providers/statistics_provider.dart';
+
+/// Point d'entrée de l'application ALPR Mobile — Algérie Télécom.
+///
+/// Configure l'arbre de providers (state management) et injecte tous les services.
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-  runApp(const ALPRApp());
-}
 
-class ALPRApp extends StatelessWidget {
-  const ALPRApp({super.key});
+  // Portrait uniquement.
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'ALPR — Algérie Télécom',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.light,
-      home: const SplashScreen(),
-    );
-  }
+  // Initialisation du service d'authentification (charge SharedPreferences).
+  final authService = AuthService();
+  await authService.init();
+
+  runApp(
+    MultiProvider(
+      providers: [
+        // AuthProvider — premier car les autres dépendent du token.
+        ChangeNotifierProvider<AuthProvider>(
+          create: (_) => AuthProvider(authService),
+        ),
+
+        // ScanProvider — caméra + AI Service.
+        ChangeNotifierProvider<ScanProvider>(
+          create: (_) => ScanProvider(ScanService(), CameraService()),
+        ),
+
+        // HistoryProvider — historique des accès depuis Laravel.
+        ChangeNotifierProxyProvider<AuthProvider, HistoryProvider>(
+          create: (ctx) => HistoryProvider(
+            AccessService(ApiService(
+              getToken: ctx.read<AuthProvider>().getToken,
+            )),
+          ),
+          update: (_, auth, __) => HistoryProvider(
+            AccessService(ApiService(getToken: auth.getToken)),
+          ),
+        ),
+
+        // NotificationProvider — notifications depuis Laravel.
+        ChangeNotifierProxyProvider<AuthProvider, NotificationProvider>(
+          create: (ctx) => NotificationProvider(
+            NotificationService(ApiService(
+              getToken: ctx.read<AuthProvider>().getToken,
+            )),
+          ),
+          update: (_, auth, __) => NotificationProvider(
+            NotificationService(ApiService(getToken: auth.getToken)),
+          ),
+        ),
+
+        // StatisticsProvider — calcul local à partir de l'historique.
+        ChangeNotifierProvider<StatisticsProvider>(
+          create: (_) => StatisticsProvider(StatisticsService()),
+        ),
+      ],
+      child: const ALPRApp(),
+    ),
+  );
 }

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_colors.dart';
-import 'login_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -34,17 +33,8 @@ class _SplashScreenState extends State<SplashScreen>
 
     _ctrl.forward();
 
-    Future.delayed(const Duration(milliseconds: 2200), () {
-      if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        PageRouteBuilder(
-          pageBuilder: (_, __, ___) => const LoginScreen(),
-          transitionsBuilder: (_, anim, __, child) =>
-              FadeTransition(opacity: anim, child: child),
-          transitionDuration: const Duration(milliseconds: 400),
-        ),
-      );
-    });
+    // La navigation est gérée par _AppRouter dans app.dart.
+    // Le splash reste affiché tant que AuthProvider.status == checking.
   }
 
   @override
