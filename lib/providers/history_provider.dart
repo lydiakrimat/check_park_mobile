@@ -20,6 +20,11 @@ class HistoryProvider extends ChangeNotifier {
   /// Filtre de statut courant : null = tous, ou 'Autorise', 'Refuse', 'Expire'.
   String? _statusFilter;
 
+  /// Filtre par plage de dates — bornes inclusive sur dateHeureEntree.
+  /// Null = pas de filtre sur cette borne.
+  DateTime? _dateFrom;
+  DateTime? _dateTo;
+
   HistoryProvider(this._service);
 
   // ── Getters ────────────────────────────────────────────────────────────────
@@ -28,6 +33,8 @@ class HistoryProvider extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   String get searchQuery => _searchQuery;
   String? get statusFilter => _statusFilter;
+  DateTime? get dateFrom => _dateFrom;
+  DateTime? get dateTo => _dateTo;
 
   /// Liste filtrée — utilisée directement par l'écran Historique.
   List<AccessRecord> get filteredRecords {
@@ -40,6 +47,21 @@ class HistoryProvider extends ChangeNotifier {
         final plate = r.displayPlate.toLowerCase();
         final name  = r.displayName.toLowerCase();
         if (!plate.contains(query) && !name.contains(query)) return false;
+      }
+      // Filtre par plage de dates sur dateHeureEntree (bornes inclusives).
+      if (_dateFrom != null || _dateTo != null) {
+        final entry = r.dateHeureEntree;
+        if (entry == null) return false;
+        // Comparaison au niveau du jour (sans l'heure).
+        final entryDay = DateTime(entry.year, entry.month, entry.day);
+        if (_dateFrom != null) {
+          final fromDay = DateTime(_dateFrom!.year, _dateFrom!.month, _dateFrom!.day);
+          if (entryDay.isBefore(fromDay)) return false;
+        }
+        if (_dateTo != null) {
+          final toDay = DateTime(_dateTo!.year, _dateTo!.month, _dateTo!.day);
+          if (entryDay.isAfter(toDay)) return false;
+        }
       }
       return true;
     }).toList();
@@ -82,10 +104,20 @@ class HistoryProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Réinitialise tous les filtres.
+  /// Définit la plage de dates pour filtrer sur dateHeureEntree.
+  /// Passer null aux deux paramètres pour supprimer le filtre date.
+  void setDateRange(DateTime? from, DateTime? to) {
+    _dateFrom = from;
+    _dateTo = to;
+    notifyListeners();
+  }
+
+  /// Réinitialise tous les filtres (texte, statut et plage de dates).
   void clearFilters() {
     _searchQuery = '';
     _statusFilter = null;
+    _dateFrom = null;
+    _dateTo = null;
     notifyListeners();
   }
 }

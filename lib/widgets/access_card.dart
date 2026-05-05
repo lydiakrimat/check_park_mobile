@@ -68,22 +68,53 @@ class AccessCard extends StatelessWidget {
           const Divider(height: 1),
           const SizedBox(height: 10),
 
-          // Ligne 2 : plaque + heure d'entrée + statut
+          // Ligne 2 : plaque + dates d'entrée/sortie + statut
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               PlateBadge(plate: entry.displayPlate, fontSize: 11),
               const SizedBox(width: 8),
-              const Icon(Icons.access_time_rounded,
-                  size: 13, color: AppColors.muted),
-              const SizedBox(width: 3),
-              Text(
-                DateFormatter.datetime(entry.dateHeureEntree),
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 11,
-                  color: AppColors.muted,
+              // Colonne des dates : entrée obligatoire, sortie nullable
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Date et heure d'entrée sur le site
+                    Row(
+                      children: [
+                        const Icon(Icons.login_rounded,
+                            size: 12, color: AppColors.muted),
+                        const SizedBox(width: 3),
+                        Text(
+                          'Entree : ${DateFormatter.datetime(entry.dateHeureEntree)}',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11,
+                            color: AppColors.muted,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    // Date et heure de sortie — '-' si le véhicule est encore sur le site
+                    Row(
+                      children: [
+                        const Icon(Icons.logout_rounded,
+                            size: 12, color: AppColors.muted),
+                        const SizedBox(width: 3),
+                        Text(
+                          entry.dateHeureSortie != null
+                              ? 'Sortie  : ${DateFormatter.datetime(entry.dateHeureSortie)}'
+                              : 'Sortie  : -',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11,
+                            color: AppColors.muted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-              const Spacer(),
               StatusBadge(status: entry.statut),
             ],
           ),

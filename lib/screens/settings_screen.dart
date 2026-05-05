@@ -180,7 +180,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 110),
+          //const SizedBox(height: 110),
+          SizedBox(height: MediaQuery.of(context).padding.bottom),
+
         ],
       ),
     );
