@@ -1,15 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import '../providers/scan_provider.dart';
 import '../models/scan_result.dart';
+import '../providers/auth_provider.dart';
+import '../services/api_service.dart';
+import '../services/search_service.dart';
 import '../theme/app_colors.dart';
 
-/// Écran de recherche manuelle par numéro de plaque.
+/// Ecran de recherche manuelle par numero de plaque.
 ///
-/// L'agent saisit un numéro de plaque au clavier.
-/// L'app envoie le texte au AI Service via POST /verify (sans photo)
-/// et affiche le résultat identique à celui du scanner caméra.
+/// L'agent saisit un numero de plaque au clavier.
+/// L'app interroge le AI Service via POST /verify-lookup (consultation pure,
+/// sans enregistrement en BDD) et affiche les infos du vehicule.
+///
+/// Si le vehicule est autorise, un bouton "Valider l'entree" apparait.
+/// L'enregistrement dans la table acces n'est effectue qu'apres confirmation
+/// explicite de l'agent via le dialog de confirmation.
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
 
@@ -20,26 +26,186 @@ class SearchScreen extends StatefulWidget {
 class _SearchScreenState extends State<SearchScreen> {
   final _ctrl = TextEditingController();
 
+  // Service de recherche — cree dans initState avec le token courant.
+  late final SearchService _searchService;
+
+  // Etat de la consultation vehicule.
+  bool        _isSearching  = false;
+  ScanResult? _result;
+  String?     _errorMessage;
+
+  // Identifiants conserves apres la consultation pour l'enregistrement d'acces.
+  int? _vehicleId;
+  int? _employeeId;
+
+  // Etat de l'enregistrement d'acces (spinner pendant la requete POST /api/acces).
+  bool _isRegistering = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Injection du token d'authentification depuis AuthProvider.
+    _searchService = SearchService(
+      ApiService(getToken: context.read<AuthProvider>().getToken),
+    );
+  }
+
   @override
   void dispose() {
     _ctrl.dispose();
     super.dispose();
   }
 
+  // Reinitialise l'etat de la recherche (resultat, erreur, IDs).
+  void _resetResult() {
+    setState(() {
+      _result       = null;
+      _errorMessage = null;
+      _vehicleId    = null;
+      _employeeId   = null;
+    });
+  }
+
+  /// Lance la consultation vehicule via POST /verify-lookup.
+  /// Ne cree aucun enregistrement en BDD.
   Future<void> _search() async {
     if (_ctrl.text.trim().isEmpty) return;
     FocusScope.of(context).unfocus();
-    // Appel au AI Service via le ScanProvider (méthode verifyByText).
-    await context.read<ScanProvider>().verifyByText(_ctrl.text.trim());
+    setState(() {
+      _isSearching  = true;
+      _result       = null;
+      _errorMessage = null;
+      _vehicleId    = null;
+      _employeeId   = null;
+    });
+
+    try {
+      final lookup = await _searchService.lookupVehicle(_ctrl.text.trim());
+      setState(() {
+        _result     = lookup.scanResult;
+        _vehicleId  = lookup.vehicleId;
+        _employeeId = lookup.employeeId;
+      });
+    } on ApiException catch (e) {
+      setState(() => _errorMessage = e.message);
+    } catch (_) {
+      setState(() => _errorMessage = 'Erreur inattendue lors de la recherche.');
+    } finally {
+      setState(() => _isSearching = false);
+    }
+  }
+
+  /// Affiche le dialog de confirmation puis enregistre l'acces si confirme.
+  Future<void> _showConfirmDialog() async {
+    if (_vehicleId == null) return;
+    final plate = _result?.displayPlate ?? '';
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (bCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Confirmer l\'acces',
+          style: GoogleFonts.plusJakartaSans(
+            fontWeight: FontWeight.w800,
+            color: AppColors.text,
+          ),
+        ),
+        content: Text(
+          'Voulez-vous enregistrer l\'entree du vehicule $plate ?',
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 14,
+            color: AppColors.text,
+          ),
+        ),
+        actions: [
+          // Bouton Annuler — ferme le dialog sans rien faire.
+          TextButton(
+            onPressed: () => Navigator.of(bCtx).pop(false),
+            child: Text(
+              'Annuler',
+              style: GoogleFonts.plusJakartaSans(
+                fontWeight: FontWeight.w600,
+                color: AppColors.muted,
+              ),
+            ),
+          ),
+          // Bouton Confirmer — ferme le dialog et declenche l'enregistrement.
+          ElevatedButton(
+            onPressed: () => Navigator.of(bCtx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            ),
+            child: Text(
+              'Confirmer',
+              style: GoogleFonts.plusJakartaSans(
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+    if (!mounted) return;
+    await _registerAccess();
+  }
+
+  /// Enregistre l'acces en BDD via POST /api/acces.
+  /// Appele uniquement apres confirmation dans le dialog.
+  Future<void> _registerAccess() async {
+    if (_vehicleId == null) return;
+    setState(() => _isRegistering = true);
+
+    try {
+      await _searchService.registerAccess(_vehicleId!, _employeeId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Acces enregistre avec succes',
+            style: GoogleFonts.plusJakartaSans(
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
+          ),
+          backgroundColor: AppColors.green,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Erreur lors de l\'enregistrement de l\'acces',
+            style: GoogleFonts.plusJakartaSans(
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
+          ),
+          backgroundColor: AppColors.danger,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isRegistering = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final scanProv = context.watch<ScanProvider>();
-    final isSending = scanProv.isSending;
-    final hasDone   = scanProv.hasDone;
-    final hasError  = scanProv.hasError;
-
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.all(20),
@@ -63,7 +229,7 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
           const SizedBox(height: 18),
 
-          // Champ de saisie + bouton
+          // Champ de saisie + bouton Rechercher
           Row(
             children: [
               Expanded(
@@ -81,12 +247,12 @@ class _SearchScreenState extends State<SearchScreen> {
                       child: Icon(Icons.search_rounded,
                           color: AppColors.primary, size: 20),
                     ),
-                    // Bouton effacer si du texte est present
+                    // Bouton effacer le champ et reinitialiser le resultat.
                     suffixIcon: _ctrl.text.isNotEmpty
                         ? GestureDetector(
                             onTap: () {
                               _ctrl.clear();
-                              context.read<ScanProvider>().reset();
+                              _resetResult();
                             },
                             child: const Icon(Icons.clear_rounded,
                                 color: AppColors.muted, size: 18),
@@ -120,7 +286,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: ElevatedButton(
-                    onPressed: isSending ? null : _search,
+                    onPressed: _isSearching ? null : _search,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.transparent,
                       shadowColor: Colors.transparent,
@@ -128,7 +294,7 @@ class _SearchScreenState extends State<SearchScreen> {
                           borderRadius: BorderRadius.circular(12)),
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                     ),
-                    child: isSending
+                    child: _isSearching
                         ? const SizedBox(
                             width: 18,
                             height: 18,
@@ -149,7 +315,7 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
           const SizedBox(height: 28),
 
-          // Séparateur
+          // Separateur
           Row(
             children: [
               const Expanded(child: Divider()),
@@ -170,14 +336,67 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
           const SizedBox(height: 16),
 
-          // Contenu selon l'état
-          if (hasError)
-            _errorState(scanProv.errorMessage ?? 'Erreur lors de la recherche')
-          else if (hasDone && scanProv.result != null)
-            _resultCard(scanProv.result!)
+          // Contenu selon l'etat
+          if (_errorMessage != null)
+            _errorState(_errorMessage!)
+          else if (_result != null)
+            _resultCard(_result!)
           else
             _emptyState(),
+
+          // Bouton "Valider l'entree" — visible uniquement si le vehicule est autorise.
+          // N'apparait pas pour les vehicules refuses ou inconnus.
+          if (_result != null && _result!.authorized)
+            _validateButton(),
         ],
+      ),
+    );
+  }
+
+  /// Bouton de validation de l'entree — affiche un spinner pendant l'enregistrement.
+  Widget _validateButton() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: SizedBox(
+        width: double.infinity,
+        height: 52,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: _isRegistering
+                  ? [AppColors.primary.withValues(alpha: 0.5),
+                     AppColors.primaryDark.withValues(alpha: 0.5)]
+                  : [AppColors.primary, AppColors.primaryDark],
+            ),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: ElevatedButton.icon(
+            onPressed: _isRegistering ? null : _showConfirmDialog,
+            icon: _isRegistering
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                        color: Colors.white, strokeWidth: 2.5),
+                  )
+                : const Icon(Icons.check_circle_outline_rounded,
+                    color: Colors.white, size: 20),
+            label: Text(
+              _isRegistering ? 'Enregistrement...' : 'Valider l\'entree',
+              style: GoogleFonts.plusJakartaSans(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 15,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.transparent,
+              shadowColor: Colors.transparent,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -233,7 +452,8 @@ class _SearchScreenState extends State<SearchScreen> {
               decoration: BoxDecoration(
                 color: AppColors.noBg,
                 shape: BoxShape.circle,
-                border: Border.all(color: AppColors.danger.withValues(alpha: 0.3)),
+                border: Border.all(
+                    color: AppColors.danger.withValues(alpha: 0.3)),
               ),
               child: const Icon(Icons.error_outline_rounded,
                   size: 32, color: AppColors.danger),
@@ -268,7 +488,7 @@ class _SearchScreenState extends State<SearchScreen> {
       ),
       child: Column(
         children: [
-          // En-tête
+          // En-tete colore selon le statut d'autorisation.
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
@@ -282,9 +502,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: isOk
-                        ? AppColors.okBg
-                        : AppColors.noBg,
+                    color: isOk ? AppColors.okBg : AppColors.noBg,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
@@ -336,7 +554,7 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
           ),
 
-          // Tableau de données
+          // Tableau de donnees du vehicule.
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
