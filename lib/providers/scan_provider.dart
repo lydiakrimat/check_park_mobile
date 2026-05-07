@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import '../models/scan_result.dart';
+import '../services/daily_counter_service.dart';
 import '../services/scan_service.dart';
 import '../services/camera_service.dart';
 import '../services/api_service.dart';
@@ -88,6 +90,14 @@ class ScanProvider extends ChangeNotifier {
       // 2. Envoie la photo au AI Service (pipeline YOLOX + OCR + fuzzy matching).
       _result = await _scanService.scanPhoto(photo);
       _status = ScanStatus.done;
+
+      // Incremente les compteurs quotidiens (fire and forget).
+      unawaited(DailyCounterService.incrementScans());
+      if (_result!.authorized) {
+        unawaited(DailyCounterService.incrementAutorises());
+      } else {
+        unawaited(DailyCounterService.incrementRefuses());
+      }
     } on ApiException catch (e) {
       _errorMessage = e.message;
       _status = ScanStatus.error;

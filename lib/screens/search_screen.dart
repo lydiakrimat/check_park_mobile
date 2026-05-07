@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../models/scan_result.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
+import '../services/daily_counter_service.dart';
 import '../services/search_service.dart';
 import '../theme/app_colors.dart';
 
@@ -86,6 +88,8 @@ class _SearchScreenState extends State<SearchScreen> {
         _vehicleId  = lookup.vehicleId;
         _employeeId = lookup.employeeId;
       });
+      // Incremente le compteur de scans pour chaque recherche manuelle reussie.
+      unawaited(DailyCounterService.incrementScans());
     } on ApiException catch (e) {
       setState(() => _errorMessage = e.message);
     } catch (_) {
@@ -166,6 +170,8 @@ class _SearchScreenState extends State<SearchScreen> {
 
     try {
       await _searchService.registerAccess(_vehicleId!, _employeeId);
+      // Incremente le compteur d'acces autorises apres confirmation reussie.
+      unawaited(DailyCounterService.incrementAutorises());
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

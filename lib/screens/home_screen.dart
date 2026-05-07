@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import '../providers/history_provider.dart';
 import '../providers/notification_provider.dart';
 import '../providers/statistics_provider.dart';
 import '../theme/app_colors.dart';
@@ -43,7 +44,16 @@ class _HomeScreenState extends State<HomeScreen> {
     'Paramètres',
   ];
 
-  void _onNavTap(int idx) => setState(() => _currentIdx = idx);
+  void _onNavTap(int idx) {
+    // Quand l'agent arrive sur l'onglet Statistiques depuis un autre onglet,
+    // recharge les compteurs SharedPreferences et les donnees API.
+    // Le listener dans StatsScreen (_onHistoryChanged) declenchera le recalcul.
+    if (idx == 3 && _currentIdx != 3) {
+      context.read<StatisticsProvider>().loadCounters();
+      context.read<HistoryProvider>().fetch();
+    }
+    setState(() => _currentIdx = idx);
+  }
 
   void _openScanner() {
     Navigator.push(
