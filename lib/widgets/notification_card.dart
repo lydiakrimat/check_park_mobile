@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/notification_model.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_colors_scheme.dart';
 import '../utils/date_formatter.dart';
 
 /// Carte de notification avec actions (marquer lu / supprimer).
@@ -20,22 +21,23 @@ class NotificationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Détermine la couleur selon le type de notification.
-    final isWarning = entry.type == 'acces_expire';
+    final isWarning   = entry.type == 'acces_expire';
     final accentColor = isWarning ? AppColors.warning : AppColors.danger;
+    final c           = context.colors;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: AppColors.white,
+        color: c.white,
         borderRadius: BorderRadius.circular(12),
         border: Border(
           left: BorderSide(
-            color: entry.lu ? AppColors.border : accentColor,
+            color: entry.lu ? c.border : accentColor,
             width: entry.lu ? 1 : 3,
           ),
-          top: BorderSide(color: AppColors.border, width: 1),
-          right: BorderSide(color: AppColors.border, width: 1),
-          bottom: BorderSide(color: AppColors.border, width: 1),
+          top: BorderSide(color: c.border, width: 1),
+          right: BorderSide(color: c.border, width: 1),
+          bottom: BorderSide(color: c.border, width: 1),
         ),
         boxShadow: entry.lu
             ? null
@@ -85,7 +87,7 @@ class NotificationCard extends StatelessWidget {
                             fontWeight: entry.lu
                                 ? FontWeight.w600
                                 : FontWeight.w800,
-                            color: AppColors.text,
+                            color: c.text,
                           ),
                         ),
                       ),
@@ -105,7 +107,7 @@ class NotificationCard extends StatelessWidget {
                     entry.message,
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 12,
-                      color: AppColors.muted,
+                      color: c.muted,
                       height: 1.4,
                     ),
                   ),
@@ -116,7 +118,7 @@ class NotificationCard extends StatelessWidget {
                         DateFormatter.relative(entry.createdAt),
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 10,
-                          color: AppColors.muted,
+                          color: c.muted,
                         ),
                       ),
                       const Spacer(),
@@ -128,7 +130,7 @@ class NotificationCard extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              color: AppColors.okBg,
+                              color: c.okBg,
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: const Icon(Icons.check_rounded,
@@ -143,7 +145,7 @@ class NotificationCard extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: AppColors.noBg,
+                            color: c.noBg,
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: const Icon(Icons.close_rounded,

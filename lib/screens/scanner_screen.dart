@@ -2,17 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:camera/camera.dart';
+import '../l10n/app_localizations.dart';
 import '../providers/scan_provider.dart';
 import '../models/scan_result.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_colors_scheme.dart';
 
 /// Écran de scan par caméra.
-///
-/// L'agent ouvre cet écran, cadre le véhicule, appuie sur le bouton,
-/// et le pipeline complet s'exécute côté AI Service :
-///   Photo → YOLOX → PaddleOCR → Fuzzy Matching → Résultat
-///
-/// La caméra est initialisée à l'ouverture et libérée à la fermeture.
 class ScannerScreen extends StatefulWidget {
   const ScannerScreen({super.key});
 
@@ -28,15 +24,13 @@ class _ScannerScreenState extends State<ScannerScreen>
   @override
   void initState() {
     super.initState();
-
-    // Animation de la ligne de scan (boucle infinie haut/bas).
     _lineCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1800),
     )..repeat(reverse: true);
-    _lineAnim = CurvedAnimation(parent: _lineCtrl, curve: Curves.easeInOut);
+    _lineAnim =
+        CurvedAnimation(parent: _lineCtrl, curve: Curves.easeInOut);
 
-    // Initialise la caméra via le provider.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ScanProvider>().initCamera();
     });
@@ -45,7 +39,6 @@ class _ScannerScreenState extends State<ScannerScreen>
   @override
   void dispose() {
     _lineCtrl.dispose();
-    // Libère la caméra quand l'agent quitte l'écran.
     context.read<ScanProvider>().disposeCamera();
     super.dispose();
   }
@@ -59,10 +52,7 @@ class _ScannerScreenState extends State<ScannerScreen>
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Zone caméra (preview en direct ou fond noir pendant le chargement)
           _buildCameraView(scanProv),
-
-          // Bouton retour
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -86,8 +76,6 @@ class _ScannerScreenState extends State<ScannerScreen>
               ),
             ),
           ),
-
-          // Résultat ou bouton scan en bas
           Positioned(
             left: 0,
             right: 0,
@@ -101,11 +89,12 @@ class _ScannerScreenState extends State<ScannerScreen>
     );
   }
 
-  /// Affiche le preview caméra en direct (ou fond noir si la caméra se charge).
   Widget _buildCameraView(ScanProvider scanProv) {
-    final screenH = MediaQuery.of(context).size.height;
-    final cameraCtrl = scanProv.camera.controller;
+    final screenH     = MediaQuery.of(context).size.height;
+    final cameraCtrl  = scanProv.camera.controller;
     final cameraReady = scanProv.camera.isInitialized && cameraCtrl != null;
+    final c           = context.colors;
+    final l           = context.l10n;
 
     return Column(
       children: [
@@ -115,7 +104,6 @@ class _ScannerScreenState extends State<ScannerScreen>
           child: Stack(
             alignment: Alignment.center,
             children: [
-              // Preview caméra en direct — remplace le fond noir simulé.
               if (cameraReady)
                 ClipRect(
                   child: OverflowBox(
@@ -123,7 +111,8 @@ class _ScannerScreenState extends State<ScannerScreen>
                     child: FittedBox(
                       fit: BoxFit.cover,
                       child: SizedBox(
-                        width: screenH * 0.55 / cameraCtrl.value.aspectRatio,
+                        width: screenH * 0.55 /
+                            cameraCtrl.value.aspectRatio,
                         height: screenH * 0.55,
                         child: CameraPreview(cameraCtrl),
                       ),
@@ -131,7 +120,6 @@ class _ScannerScreenState extends State<ScannerScreen>
                   ),
                 )
               else
-                // Fond noir + grille pendant l'initialisation de la caméra.
                 Container(
                   color: const Color(0xFF0A0E1A),
                   child: CustomPaint(
@@ -140,19 +128,18 @@ class _ScannerScreenState extends State<ScannerScreen>
                   ),
                 ),
 
-              // Cadre de scan vert (toujours visible par-dessus la preview).
               Container(
                 width: 280,
                 height: 130,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.greenLight, width: 2),
+                  border: Border.all(
+                      color: AppColors.greenLight, width: 2),
                   color: AppColors.green.withValues(alpha: 0.08),
                 ),
                 child: Stack(
                   children: [
                     ..._buildCorners(),
-                    // Ligne de scan animée (uniquement quand pas encore de résultat).
                     if (!scanProv.hasDone)
                       AnimatedBuilder(
                         animation: _lineAnim,
@@ -176,7 +163,6 @@ class _ScannerScreenState extends State<ScannerScreen>
                 ),
               ),
 
-              // Spinner de chargement caméra.
               if (!cameraReady && !scanProv.hasError)
                 const Positioned(
                   bottom: 50,
@@ -185,12 +171,11 @@ class _ScannerScreenState extends State<ScannerScreen>
                   ),
                 ),
 
-              // Texte guide sous le cadre (une fois la caméra prête).
               if (cameraReady)
                 Positioned(
                   bottom: 60,
                   child: Text(
-                    'Placez la plaque dans le cadre',
+                    l.placerPlaque,
                     style: GoogleFonts.plusJakartaSans(
                       color: Colors.white,
                       fontSize: 13,
@@ -199,7 +184,6 @@ class _ScannerScreenState extends State<ScannerScreen>
                   ),
                 ),
 
-              // Message d'erreur caméra.
               if (scanProv.hasError && !scanProv.hasDone)
                 Positioned(
                   bottom: 55,
@@ -213,7 +197,7 @@ class _ScannerScreenState extends State<ScannerScreen>
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      scanProv.errorMessage ?? 'Erreur caméra',
+                      scanProv.errorMessage ?? 'Erreur camera',
                       style: GoogleFonts.plusJakartaSans(
                         color: Colors.white, fontSize: 12,
                       ),
@@ -224,7 +208,7 @@ class _ScannerScreenState extends State<ScannerScreen>
             ],
           ),
         ),
-        Expanded(child: Container(color: AppColors.background)),
+        Expanded(child: Container(color: c.background)),
       ],
     );
   }
@@ -235,33 +219,25 @@ class _ScannerScreenState extends State<ScannerScreen>
     const s = 20.0;
     return [
       Positioned(
-          top: 0,
-          left: 0,
+          top: 0, left: 0,
           child: _corner(
               const BorderRadius.only(topLeft: Radius.circular(12)),
-              c, t, s,
-              top: true, left: true)),
+              c, t, s, top: true, left: true)),
       Positioned(
-          top: 0,
-          right: 0,
+          top: 0, right: 0,
           child: _corner(
               const BorderRadius.only(topRight: Radius.circular(12)),
-              c, t, s,
-              top: true, right: true)),
+              c, t, s, top: true, right: true)),
       Positioned(
-          bottom: 0,
-          left: 0,
+          bottom: 0, left: 0,
           child: _corner(
               const BorderRadius.only(bottomLeft: Radius.circular(12)),
-              c, t, s,
-              bottom: true, left: true)),
+              c, t, s, bottom: true, left: true)),
       Positioned(
-          bottom: 0,
-          right: 0,
+          bottom: 0, right: 0,
           child: _corner(
               const BorderRadius.only(bottomRight: Radius.circular(12)),
-              c, t, s,
-              bottom: true, right: true)),
+              c, t, s, bottom: true, right: true)),
     ];
   }
 
@@ -275,26 +251,28 @@ class _ScannerScreenState extends State<ScannerScreen>
       height: s,
       decoration: BoxDecoration(
         border: Border(
-          top: top ? BorderSide(color: c, width: t) : BorderSide.none,
+          top:    top    ? BorderSide(color: c, width: t) : BorderSide.none,
           bottom: bottom ? BorderSide(color: c, width: t) : BorderSide.none,
-          left: left ? BorderSide(color: c, width: t) : BorderSide.none,
-          right: right ? BorderSide(color: c, width: t) : BorderSide.none,
+          left:   left   ? BorderSide(color: c, width: t) : BorderSide.none,
+          right:  right  ? BorderSide(color: c, width: t) : BorderSide.none,
         ),
         borderRadius: br,
       ),
     );
   }
 
-  /// Panneau du bas avant le scan : titre + bouton capture.
   Widget _buildScanButton(ScanProvider scanProv) {
     final isSending = scanProv.isSending;
     final hasError  = scanProv.hasError;
+    final c         = context.colors;
+    final l         = context.l10n;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 28, 24, 40),
       decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        color: c.background,
+        borderRadius:
+            const BorderRadius.vertical(top: Radius.circular(28)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.15),
@@ -311,28 +289,28 @@ class _ScannerScreenState extends State<ScannerScreen>
             height: 4,
             margin: const EdgeInsets.only(bottom: 20),
             decoration: BoxDecoration(
-              color: AppColors.border,
+              color: c.border,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
           Text(
-            'Scanner une plaque',
+            l.scannerUnePlaqueTitle,
             style: GoogleFonts.playfairDisplay(
               fontSize: 20,
               fontWeight: FontWeight.w800,
-              color: AppColors.text,
+              color: c.text,
             ),
           ),
           const SizedBox(height: 6),
           Text(
             isSending
-                ? 'Analyse en cours... (2-5 secondes)'
+                ? l.analyseEnCours
                 : hasError
                     ? scanProv.errorMessage ?? 'Erreur lors du scan'
-                    : 'Appuyez sur le bouton pour capturer et analyser',
+                    : l.appuyerPourCapture,
             style: GoogleFonts.plusJakartaSans(
               fontSize: 12,
-              color: hasError ? AppColors.danger : AppColors.muted,
+              color: hasError ? AppColors.danger : c.muted,
             ),
             textAlign: TextAlign.center,
           ),
@@ -347,9 +325,10 @@ class _ScannerScreenState extends State<ScannerScreen>
                 borderRadius: BorderRadius.circular(12),
               ),
               child: ElevatedButton.icon(
-                onPressed: (isSending || !scanProv.camera.isInitialized)
-                    ? null
-                    : () => scanProv.captureAndScan(),
+                onPressed:
+                    (isSending || !scanProv.camera.isInitialized)
+                        ? null
+                        : () => scanProv.captureAndScan(),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.transparent,
                   shadowColor: Colors.transparent,
@@ -361,11 +340,14 @@ class _ScannerScreenState extends State<ScannerScreen>
                         width: 18,
                         height: 18,
                         child: CircularProgressIndicator(
-                            color: Colors.white, strokeWidth: 2.5))
+                            color: Colors.white, strokeWidth: 2.5),
+                      )
                     : const Icon(Icons.camera_alt_rounded,
                         color: Colors.white, size: 20),
                 label: Text(
-                  isSending ? 'Analyse en cours...' : 'Capturer et scanner',
+                  isSending
+                      ? l.analyseEnCoursBtn
+                      : l.capturerEtScanner,
                   style: GoogleFonts.plusJakartaSans(
                     color: Colors.white,
                     fontWeight: FontWeight.w700,
@@ -380,18 +362,20 @@ class _ScannerScreenState extends State<ScannerScreen>
     );
   }
 
-  /// Panneau du bas après le scan : résultat avec infos véhicule + propriétaire.
   Widget _buildResult(ScanResult r) {
-    final isOk  = r.authorized;
+    final isOk = r.authorized;
     final plate = r.displayPlate;
+    final c = context.colors;
+    final l = context.l10n;
 
     return Container(
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height * 0.55,
       ),
       decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        color: c.white,
+        borderRadius:
+            const BorderRadius.vertical(top: Radius.circular(28)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.15),
@@ -403,27 +387,24 @@ class _ScannerScreenState extends State<ScannerScreen>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Handle
           Container(
             width: 40,
             height: 4,
             margin: const EdgeInsets.only(top: 12, bottom: 16),
             decoration: BoxDecoration(
-              color: AppColors.border, borderRadius: BorderRadius.circular(2),
+              color: c.border,
+              borderRadius: BorderRadius.circular(2),
             ),
           ),
-
-          // Plaque + statut
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
               children: [
-                // Plaque détectée
                 Container(
                   padding: const EdgeInsets.symmetric(
                       horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
-                    color: AppColors.text,
+                    color: c.text,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
@@ -442,7 +423,7 @@ class _ScannerScreenState extends State<ScannerScreen>
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: isOk ? AppColors.okBg : AppColors.noBg,
+                    color: isOk ? c.okBg : c.noBg,
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
@@ -453,7 +434,7 @@ class _ScannerScreenState extends State<ScannerScreen>
                 ),
                 const SizedBox(width: 10),
                 Text(
-                  isOk ? 'Autorise' : 'Refuse',
+                  isOk ? l.autorise : l.refuse,
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
@@ -465,44 +446,41 @@ class _ScannerScreenState extends State<ScannerScreen>
           ),
           const SizedBox(height: 14),
           const Divider(height: 1, indent: 20, endIndent: 20),
-
-          // Tableau de détails dynamiques
           Flexible(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
               child: Column(
                 children: [
                   if (r.plateOcr != null)
-                    _detailRow('OCR lu', r.plateOcr!),
+                    _detailRow(l.ocrLu,         r.plateOcr!, c),
                   if (r.plateMatched != null)
-                    _detailRow('Correspondance', r.plateMatched!),
+                    _detailRow(l.correspondance, r.plateMatched!, c),
                   if (r.similarityScore != null)
-                    _detailRow('Similarite',
-                        '${(r.similarityScore! * 100).toStringAsFixed(0)}%'),
+                    _detailRow(l.similarite,
+                        '${(r.similarityScore! * 100).toStringAsFixed(0)}%', c),
                   if (r.vehicle?.brand != null)
-                    _detailRow('Marque', r.vehicle!.brand!),
+                    _detailRow(l.marque,         r.vehicle!.brand!, c),
                   if (r.vehicle?.color != null)
-                    _detailRow('Couleur', r.vehicle!.color!),
+                    _detailRow(l.couleur,        r.vehicle!.color!, c),
                   if (r.owner != null)
-                    _detailRow('Proprietaire', r.owner!.fullName),
+                    _detailRow(l.proprietaire,   r.owner!.fullName, c),
                   if (r.owner?.service != null)
-                    _detailRow('Service', r.owner!.service!),
+                    _detailRow(l.service,        r.owner!.service!, c),
                   if (!isOk && r.reason != null)
-                    _detailRow('Raison', r.reason!),
+                    _detailRow(l.raison,         r.reason!, c),
                   if (!r.detected)
-                    _detailRow('Statut', 'Plaque non detectee'),
+                    _detailRow(l.statutPlaque,   l.plaqueNonDetectee, c),
                 ],
               ),
             ),
           ),
-
-          // Bouton scanner un autre
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
             child: OutlinedButton.icon(
               onPressed: () => context.read<ScanProvider>().reset(),
               style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: AppColors.primary, width: 1.5),
+                side: const BorderSide(
+                    color: AppColors.primary, width: 1.5),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
                 minimumSize: const Size(double.infinity, 48),
@@ -510,7 +488,7 @@ class _ScannerScreenState extends State<ScannerScreen>
               icon: const Icon(Icons.refresh_rounded,
                   color: AppColors.primary, size: 18),
               label: Text(
-                'Scanner un autre',
+                l.scannerUnAutre,
                 style: GoogleFonts.plusJakartaSans(
                   color: AppColors.primary,
                   fontWeight: FontWeight.w700,
@@ -524,7 +502,7 @@ class _ScannerScreenState extends State<ScannerScreen>
     );
   }
 
-  Widget _detailRow(String key, String value) {
+  Widget _detailRow(String key, String value, AppColorsScheme c) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(
@@ -536,7 +514,7 @@ class _ScannerScreenState extends State<ScannerScreen>
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: AppColors.muted,
+                color: c.muted,
               ),
             ),
           ),
@@ -547,7 +525,7 @@ class _ScannerScreenState extends State<ScannerScreen>
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: AppColors.text,
+                color: c.text,
               ),
             ),
           ),

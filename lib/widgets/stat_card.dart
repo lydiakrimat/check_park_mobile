@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../theme/app_colors.dart';
+import '../theme/app_colors_scheme.dart';
 
 /// Carte KPI compacte — icône + valeur + libellé.
 class StatCard extends StatelessWidget {
@@ -19,10 +19,11 @@ class StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
       decoration: BoxDecoration(
-        color: AppColors.white,
+        color: c.white,
         borderRadius: BorderRadius.circular(12),
         boxShadow: const [
           BoxShadow(
@@ -59,7 +60,7 @@ class StatCard extends StatelessWidget {
             style: GoogleFonts.plusJakartaSans(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: AppColors.muted,
+              color: c.muted,
             ),
           ),
         ],

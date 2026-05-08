@@ -30,6 +30,7 @@ class AuthProvider extends ChangeNotifier {
   AuthStatus _status = AuthStatus.checking;
   UserModel? _user;
   String? _errorMessage;
+  bool _isSaving = false;
 
   AuthProvider(this._authService);
 
@@ -39,6 +40,7 @@ class AuthProvider extends ChangeNotifier {
   UserModel? get user => _user;
   String? get errorMessage => _errorMessage;
   bool get isLoading => _status == AuthStatus.checking;
+  bool get isSaving => _isSaving;
 
   // ── Initialisation ─────────────────────────────────────────────────────────
 
@@ -92,6 +94,44 @@ class AuthProvider extends ChangeNotifier {
     _status = AuthStatus.unauthenticated;
     _errorMessage = null;
     notifyListeners();
+  }
+
+  // ── Mise à jour du profil ──────────────────────────────────────────────────
+
+  /// Met à jour nom, prenom, email et telephone de l'agent connecté.
+  ///
+  /// Retourne null si la mise à jour a réussi, ou un message d'erreur sinon.
+  Future<String?> updateProfile({
+    required String nom,
+    required String prenom,
+    required String email,
+    String? telephone,
+  }) async {
+    if (_user == null) return 'Utilisateur non connecté.';
+    _isSaving = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      _user = await _authService.updateProfile(
+        id: _user!.id,
+        nom: nom,
+        prenom: prenom,
+        email: email,
+        role: _user!.role, // rôle non modifiable depuis l'app mobile
+        telephone: telephone,
+      );
+      _isSaving = false;
+      notifyListeners();
+      return null; // succès
+    } on ApiException catch (e) {
+      _isSaving = false;
+      notifyListeners();
+      return e.message;
+    } catch (_) {
+      _isSaving = false;
+      notifyListeners();
+      return 'Erreur inattendue lors de la mise à jour.';
+    }
   }
 
   // ── Accès au token (pour les autres services) ──────────────────────────────

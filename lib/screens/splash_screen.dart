@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../l10n/app_localizations.dart';
 import '../theme/app_colors.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -45,6 +46,8 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
+    final l = context.l10n;
+
     return Scaffold(
       body: Container(
         width: double.infinity,
@@ -113,7 +116,7 @@ class _SplashScreenState extends State<SplashScreen>
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Controle des Immatriculations de Vehicules',
+                        l.splashSubtitle,
                         style: GoogleFonts.plusJakartaSans(
                           color: Colors.white.withValues(alpha: 0.7),
                           fontSize: 13,
@@ -122,7 +125,7 @@ class _SplashScreenState extends State<SplashScreen>
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'Unité Recherche et Développement',
+                        l.splashUnit,
                         style: GoogleFonts.plusJakartaSans(
                           color: Colors.white.withValues(alpha: 0.45),
                           fontSize: 11,
@@ -149,7 +152,7 @@ class _SplashScreenState extends State<SplashScreen>
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'Chargement en cours...',
+                        l.chargementEnCours,
                         style: GoogleFonts.plusJakartaSans(
                           color: Colors.white.withValues(alpha: 0.45),
                           fontSize: 11,

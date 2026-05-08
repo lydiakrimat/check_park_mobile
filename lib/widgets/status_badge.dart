@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../l10n/app_localizations.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_colors_scheme.dart';
 
 /// Badge de statut d'accès : Autorisé | Refusé | Expiré.
 class StatusBadge extends StatelessWidget {
@@ -10,7 +12,9 @@ class StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cfg = _config(status);
+    final c   = context.colors;
+    final l   = context.l10n;
+    final cfg = _config(status, c, l);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
@@ -35,27 +39,27 @@ class StatusBadge extends StatelessWidget {
     );
   }
 
-  _BadgeCfg _config(String s) {
+  _BadgeCfg _config(String s, AppColorsScheme c, AppLocalizations l) {
     switch (s) {
       case 'Autorise':
         return _BadgeCfg(
-          bg: AppColors.okBg,
+          bg: c.okBg,
           textColor: AppColors.okText,
-          label: 'Autorise',
+          label: l.autorise,
           icon: Icons.check_circle_rounded,
         );
       case 'Refuse':
         return _BadgeCfg(
-          bg: AppColors.noBg,
+          bg: c.noBg,
           textColor: AppColors.noText,
-          label: 'Refuse',
+          label: l.refuse,
           icon: Icons.cancel_rounded,
         );
       default: // Expire
         return _BadgeCfg(
-          bg: AppColors.expBg,
+          bg: c.expBg,
           textColor: AppColors.expText,
-          label: 'Expire',
+          label: l.expire,
           icon: Icons.access_time_rounded,
         );
     }

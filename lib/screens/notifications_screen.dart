@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import '../l10n/app_localizations.dart';
 import '../providers/notification_provider.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_colors_scheme.dart';
 import '../widgets/at_header.dart';
 import '../widgets/notification_card.dart';
 
@@ -29,16 +31,18 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     final notifProv = context.watch<NotificationProvider>();
-    final unread = notifProv.unreadCount;
+    final unread    = notifProv.unreadCount;
+    final c         = context.colors;
+    final l         = context.l10n;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: c.background,
       body: Column(
         children: [
           // En-tête gradient
           ATHeader(
-            title: 'Notifications',
-            subtitle: '$unread non lue(s)',
+            title: l.notifications,
+            subtitle: l.nonLues(unread),
             showBack: true,
             actions: [
               if (unread > 0)
@@ -52,7 +56,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      'Tout lire',
+                      l.toutLire,
                       style: GoogleFonts.plusJakartaSans(
                         color: Colors.white,
                         fontSize: 11,
@@ -70,7 +74,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 ? const Center(
                     child: CircularProgressIndicator(color: AppColors.primary))
                 : notifProv.notifications.isEmpty
-                    ? _emptyState()
+                    ? _emptyState(c, l)
                     : RefreshIndicator(
                         color: AppColors.primary,
                         onRefresh: () => notifProv.fetch(),
@@ -95,7 +99,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
-  Widget _emptyState() {
+  Widget _emptyState(AppColorsScheme c, AppLocalizations l) {
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -104,27 +108,27 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             width: 72,
             height: 72,
             decoration: BoxDecoration(
-              color: AppColors.background,
+              color: c.background,
               shape: BoxShape.circle,
-              border: Border.all(color: AppColors.border),
+              border: Border.all(color: c.border),
             ),
-            child: const Icon(Icons.notifications_off_outlined,
-                size: 32, color: AppColors.muted),
+            child: Icon(Icons.notifications_off_outlined,
+                size: 32, color: c.muted),
           ),
           const SizedBox(height: 16),
           Text(
-            'Aucune notification',
+            l.aucuneNotification,
             style: GoogleFonts.plusJakartaSans(
               fontSize: 15,
               fontWeight: FontWeight.w700,
-              color: AppColors.text,
+              color: c.text,
             ),
           ),
           const SizedBox(height: 6),
           Text(
-            'Toutes les notifications ont ete traitees',
+            l.notifTraitees,
             style: GoogleFonts.plusJakartaSans(
-                fontSize: 12, color: AppColors.muted),
+                fontSize: 12, color: c.muted),
           ),
         ],
       ),

@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import '../l10n/app_localizations.dart';
 import '../providers/history_provider.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_colors_scheme.dart';
 import '../widgets/access_card.dart';
 
 /// Écran de l'historique des accès (entrées/sorties).
-///
-/// Charge les données depuis Laravel via HistoryProvider.
-/// Supporte la recherche par nom/plaque et les filtres par statut.
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
 
@@ -19,12 +18,12 @@ class HistoryScreen extends StatefulWidget {
 class _HistoryScreenState extends State<HistoryScreen> {
   final _searchCtrl = TextEditingController();
 
-  static const _filters = ['Tous', 'Autorise', 'Refuse', 'Expire'];
+  // Valeurs internes des filtres (invariantes — utilisées par le provider).
+  static const _filterKeys = ['Tous', 'Autorise', 'Refuse', 'Expire'];
 
   @override
   void initState() {
     super.initState();
-    // Chargement initial des données depuis Laravel.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<HistoryProvider>().fetch();
     });
@@ -36,58 +35,70 @@ class _HistoryScreenState extends State<HistoryScreen> {
     super.dispose();
   }
 
+  /// Retourne le label localisé d'un filtre.
+  String _filterLabel(String key, AppLocalizations l) {
+    switch (key) {
+      case 'Autorise': return l.autorise;
+      case 'Refuse':   return l.refuse;
+      case 'Expire':   return l.expire;
+      default:         return l.filtresTous;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final histProv = context.watch<HistoryProvider>();
-    final items = histProv.filteredRecords;
+    final histProv     = context.watch<HistoryProvider>();
+    final items        = histProv.filteredRecords;
     final activeFilter = histProv.statusFilter ?? 'Tous';
+    final c            = context.colors;
+    final l            = context.l10n;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Barre de recherche + filtres
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Historique des Acces',
+                l.historiqueDesAcces,
                 style: GoogleFonts.playfairDisplay(
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
-                  color: AppColors.text,
+                  color: c.text,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
                 histProv.loading
-                    ? 'Chargement...'
-                    : '${items.length} entree(s)',
+                    ? l.chargement
+                    : l.entrees(items.length),
                 style: GoogleFonts.plusJakartaSans(
-                    fontSize: 12, color: AppColors.muted),
+                    fontSize: 12, color: c.muted),
               ),
               const SizedBox(height: 14),
 
               // Champ de recherche
               TextField(
                 controller: _searchCtrl,
-                onChanged: (v) => context.read<HistoryProvider>().setSearch(v),
+                onChanged: (v) =>
+                    context.read<HistoryProvider>().setSearch(v),
                 style: GoogleFonts.plusJakartaSans(
-                    fontSize: 14, color: AppColors.text),
+                    fontSize: 14, color: c.text),
                 decoration: InputDecoration(
-                  hintText: 'Rechercher par nom, matricule...',
+                  hintText: l.rechercheHint,
                   filled: true,
-                  fillColor: AppColors.white,
-                  prefixIcon: const Padding(
-                    padding: EdgeInsets.all(13),
+                  fillColor: c.white,
+                  prefixIcon: Padding(
+                    padding: const EdgeInsets.all(13),
                     child: Icon(Icons.search_rounded,
                         color: AppColors.primary, size: 20),
                   ),
                   suffixIcon: histProv.searchQuery.isNotEmpty
                       ? IconButton(
-                          icon: const Icon(Icons.close_rounded,
-                              size: 18, color: AppColors.muted),
+                          icon: Icon(Icons.close_rounded,
+                              size: 18, color: c.muted),
                           onPressed: () {
                             _searchCtrl.clear();
                             context.read<HistoryProvider>().setSearch('');
@@ -96,8 +107,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       : null,
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(
-                        color: AppColors.border, width: 1.5),
+                    borderSide: BorderSide(color: c.border, width: 1.5),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -110,26 +120,29 @@ class _HistoryScreenState extends State<HistoryScreen> {
               ),
               const SizedBox(height: 10),
 
-              // Barre de filtres : chips de statut + bouton filtre par date
+              // Barre de filtres
               Row(
                 children: [
-                  // Chips de statut dans une zone horizontale scrollable
                   Expanded(
                     child: SizedBox(
                       height: 34,
                       child: ListView.separated(
                         scrollDirection: Axis.horizontal,
-                        itemCount: _filters.length,
-                        separatorBuilder: (_, __) => const SizedBox(width: 8),
+                        itemCount: _filterKeys.length,
+                        separatorBuilder: (_, __) =>
+                            const SizedBox(width: 8),
                         itemBuilder: (_, i) {
-                          final f = _filters[i];
-                          final active = activeFilter == f ||
-                              (f == 'Tous' && histProv.statusFilter == null);
+                          final key    = _filterKeys[i];
+                          final label  = _filterLabel(key, l);
+                          final active = activeFilter == key ||
+                              (key == 'Tous' &&
+                                  histProv.statusFilter == null);
                           return GestureDetector(
                             onTap: () {
                               context
                                   .read<HistoryProvider>()
-                                  .setStatusFilter(f == 'Tous' ? null : f);
+                                  .setStatusFilter(
+                                      key == 'Tous' ? null : key);
                             },
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 180),
@@ -138,22 +151,23 @@ class _HistoryScreenState extends State<HistoryScreen> {
                               decoration: BoxDecoration(
                                 color: active
                                     ? AppColors.primary
-                                    : AppColors.white,
+                                    : c.white,
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(
                                   color: active
                                       ? AppColors.primary
-                                      : AppColors.border,
+                                      : c.border,
                                   width: 1.5,
                                 ),
                               ),
                               child: Text(
-                                f,
+                                label,
                                 style: GoogleFonts.plusJakartaSans(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700,
-                                  color:
-                                      active ? Colors.white : AppColors.muted,
+                                  color: active
+                                      ? Colors.white
+                                      : c.muted,
                                 ),
                               ),
                             ),
@@ -163,8 +177,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  // Bouton de filtre par plage de dates
-                  _dateFilterButton(histProv),
+                  _dateFilterButton(histProv, c),
                 ],
               ),
               const SizedBox(height: 14),
@@ -172,23 +185,22 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ),
         ),
 
-        // Liste ou état vide
         Expanded(
           child: histProv.loading
-              ? const Center(
+              ? Center(
                   child: CircularProgressIndicator(color: AppColors.primary))
               : histProv.errorMessage != null
-                  ? _errorState(histProv.errorMessage!)
+                  ? _errorState(histProv.errorMessage!, c, l)
                   : items.isEmpty
-                      ? _emptyState()
+                      ? _emptyState(c, l)
                       : RefreshIndicator(
                           color: AppColors.primary,
                           onRefresh: () =>
                               context.read<HistoryProvider>().fetch(),
                           child: ListView.builder(
-                            padding:
-                                const EdgeInsets.fromLTRB(16, 0, 16, 20),
-                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                            physics:
+                                const AlwaysScrollableScrollPhysics(),
                             itemCount: items.length,
                             itemBuilder: (_, i) =>
                                 AccessCard(entry: items[i]),
@@ -200,13 +212,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  /// Ouvre le sélecteur de plage de dates Flutter natif (Material DateRangePicker).
-  /// Applique le filtre dans HistoryProvider après la sélection.
   Future<void> _showDateRangePicker() async {
     final provider = context.read<HistoryProvider>();
-    final initialRange = provider.dateFrom != null && provider.dateTo != null
-        ? DateTimeRange(start: provider.dateFrom!, end: provider.dateTo!)
-        : null;
+    final initialRange =
+        provider.dateFrom != null && provider.dateTo != null
+            ? DateTimeRange(
+                start: provider.dateFrom!, end: provider.dateTo!)
+            : null;
 
     final picked = await showDateRangePicker(
       context: context,
@@ -226,13 +238,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
     if (!mounted) return;
     if (picked != null) {
-      context.read<HistoryProvider>().setDateRange(picked.start, picked.end);
+      context
+          .read<HistoryProvider>()
+          .setDateRange(picked.start, picked.end);
     }
   }
 
-  /// Bouton de filtre par date — affiche la plage sélectionnée quand actif,
-  /// avec un X pour réinitialiser le filtre.
-  Widget _dateFilterButton(HistoryProvider provider) {
+  Widget _dateFilterButton(HistoryProvider provider, AppColorsScheme c) {
     final isActive = provider.dateFrom != null;
 
     return GestureDetector(
@@ -242,10 +254,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
         height: 34,
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: isActive ? AppColors.primary : AppColors.white,
+          color: isActive ? AppColors.primary : c.white,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isActive ? AppColors.primary : AppColors.border,
+            color: isActive ? AppColors.primary : c.border,
             width: 1.5,
           ),
         ),
@@ -255,9 +267,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
             Icon(
               Icons.date_range_rounded,
               size: 14,
-              color: isActive ? Colors.white : AppColors.muted,
+              color: isActive ? Colors.white : c.muted,
             ),
-            // Quand actif : affiche la plage et un bouton X pour supprimer le filtre
             if (isActive) ...[
               const SizedBox(width: 4),
               Text(
@@ -270,8 +281,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
               ),
               const SizedBox(width: 4),
               GestureDetector(
-                onTap: () =>
-                    context.read<HistoryProvider>().setDateRange(null, null),
+                onTap: () => context
+                    .read<HistoryProvider>()
+                    .setDateRange(null, null),
                 child: const Icon(Icons.close_rounded,
                     size: 13, color: Colors.white),
               ),
@@ -282,56 +294,54 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  /// Formate une date en "dd/MM" pour l'affichage compact dans le chip de filtre.
-  String _shortDate(DateTime dt) {
-    return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}';
-  }
+  String _shortDate(DateTime dt) =>
+      '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}';
 
-  Widget _emptyState() {
+  Widget _emptyState(AppColorsScheme c, AppLocalizations l) {
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.history_toggle_off_rounded,
-              size: 52, color: AppColors.border),
+          Icon(Icons.history_toggle_off_rounded, size: 52, color: c.border),
           const SizedBox(height: 14),
           Text(
-            'Aucune entrée trouvée',
+            l.aucuneEntree,
             style: GoogleFonts.plusJakartaSans(
-              fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.text,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: c.text,
             ),
           ),
           const SizedBox(height: 6),
           Text(
-            'Modifiez les filtres ou la recherche',
+            l.modifierFiltres,
             style: GoogleFonts.plusJakartaSans(
-                fontSize: 12, color: AppColors.muted),
+                fontSize: 12, color: c.muted),
           ),
         ],
       ),
     );
   }
 
-  Widget _errorState(String message) {
+  Widget _errorState(String message, AppColorsScheme c, AppLocalizations l) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off_rounded,
-                size: 48, color: AppColors.muted),
+            Icon(Icons.cloud_off_rounded, size: 48, color: c.muted),
             const SizedBox(height: 14),
             Text(
               message,
               style: GoogleFonts.plusJakartaSans(
-                  fontSize: 13, color: AppColors.muted),
+                  fontSize: 13, color: c.muted),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
             OutlinedButton(
               onPressed: () => context.read<HistoryProvider>().fetch(),
-              child: const Text('Réessayer'),
+              child: Text(l.reessayer),
             ),
           ],
         ),

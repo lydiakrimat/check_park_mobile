@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../l10n/app_localizations.dart';
 import '../models/access_record.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_colors_scheme.dart';
 import '../utils/date_formatter.dart';
 import 'plate_badge.dart';
 import 'status_badge.dart';
@@ -15,12 +17,14 @@ class AccessCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isPermanent = entry.typeAcces == 'Permanent';
+    final c           = context.colors;
+    final l           = context.l10n;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.white,
+        color: c.white,
         borderRadius: BorderRadius.circular(12),
         boxShadow: const [
           BoxShadow(
@@ -47,21 +51,21 @@ class AccessCard extends StatelessWidget {
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.text,
+                        color: c.text,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      isPermanent ? 'Employe AT' : 'Visiteur',
+                      isPermanent ? l.employeAT : l.visiteur,
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 11,
-                        color: AppColors.muted,
+                        color: c.muted,
                       ),
                     ),
                   ],
                 ),
               ),
-              _typeBadge(isPermanent),
+              _typeBadge(isPermanent, c, l),
             ],
           ),
           const SizedBox(height: 10),
@@ -82,14 +86,13 @@ class AccessCard extends StatelessWidget {
                     // Date et heure d'entrée sur le site
                     Row(
                       children: [
-                        const Icon(Icons.login_rounded,
-                            size: 12, color: AppColors.muted),
+                        Icon(Icons.login_rounded, size: 12, color: c.muted),
                         const SizedBox(width: 3),
                         Text(
-                          'Entree : ${DateFormatter.datetime(entry.dateHeureEntree)}',
+                          '${l.entreePrefix}${DateFormatter.datetime(entry.dateHeureEntree)}',
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 11,
-                            color: AppColors.muted,
+                            color: c.muted,
                           ),
                         ),
                       ],
@@ -98,16 +101,15 @@ class AccessCard extends StatelessWidget {
                     // Date et heure de sortie — '-' si le véhicule est encore sur le site
                     Row(
                       children: [
-                        const Icon(Icons.logout_rounded,
-                            size: 12, color: AppColors.muted),
+                        Icon(Icons.logout_rounded, size: 12, color: c.muted),
                         const SizedBox(width: 3),
                         Text(
                           entry.dateHeureSortie != null
-                              ? 'Sortie  : ${DateFormatter.datetime(entry.dateHeureSortie)}'
-                              : 'Sortie  : -',
+                              ? '${l.sortiePrefix}${DateFormatter.datetime(entry.dateHeureSortie)}'
+                              : '${l.sortiePrefix}-',
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 11,
-                            color: AppColors.muted,
+                            color: c.muted,
                           ),
                         ),
                       ],
@@ -144,15 +146,15 @@ class AccessCard extends StatelessWidget {
     );
   }
 
-  Widget _typeBadge(bool isPermanent) {
+  Widget _typeBadge(bool isPermanent, AppColorsScheme c, AppLocalizations l) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: isPermanent ? AppColors.blueTint : AppColors.orangeTint,
+        color: isPermanent ? c.blueTint : c.orangeTint,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
-        isPermanent ? 'Permanent' : 'Temporaire',
+        isPermanent ? l.permanent : l.temporaire,
         style: GoogleFonts.plusJakartaSans(
           fontSize: 10,
           fontWeight: FontWeight.w700,

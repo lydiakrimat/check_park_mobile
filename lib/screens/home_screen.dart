@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import '../l10n/app_localizations.dart';
 import '../providers/history_provider.dart';
 import '../providers/notification_provider.dart';
 import '../providers/statistics_provider.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_colors_scheme.dart';
 import 'history_screen.dart';
 import 'notifications_screen.dart';
 import 'scanner_screen.dart';
@@ -24,10 +26,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // Index des pages (0=Rechercher, 1=Historique, 2=Accueil/Scanner, 3=Stats, 4=Params)
   int _currentIdx = 2;
 
-  // Pages des onglets (le scanner FAB affiche _HomeTab)
   final List<Widget> _pages = const [
     SearchScreen(),
     HistoryScreen(),
@@ -36,18 +36,7 @@ class _HomeScreenState extends State<HomeScreen> {
     SettingsScreen(),
   ];
 
-  static const List<String> _titles = [
-    'Rechercher',
-    'Historique',
-    'Contrôle d\'accès',
-    'Statistiques',
-    'Paramètres',
-  ];
-
   void _onNavTap(int idx) {
-    // Quand l'agent arrive sur l'onglet Statistiques depuis un autre onglet,
-    // recharge les compteurs SharedPreferences et les donnees API.
-    // Le listener dans StatsScreen (_onHistoryChanged) declenchera le recalcul.
     if (idx == 3 && _currentIdx != 3) {
       context.read<StatisticsProvider>().loadCounters();
       context.read<HistoryProvider>().fetch();
@@ -73,11 +62,23 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
+    final l = context.l10n;
+
+    // Titres des onglets dans la langue courante.
+    final titles = [
+      l.rechercher,
+      l.historique,
+      l.controleAcces,
+      l.statistiques,
+      l.parametres,
+    ];
+
     SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.light);
     return Scaffold(
       extendBody: true,
-      backgroundColor: AppColors.background,
-      appBar: _buildAppBar(),
+      backgroundColor: c.background,
+      appBar: _buildAppBar(titles[_currentIdx], c, l),
       body: IndexedStack(index: _currentIdx, children: _pages),
       floatingActionButton: _ScannerFab(
         isActive: _currentIdx == 2,
@@ -90,11 +91,12 @@ class _HomeScreenState extends State<HomeScreen> {
         },
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: _buildBottomBar(),
+      bottomNavigationBar: _buildBottomBar(c, l),
     );
   }
 
-  PreferredSizeWidget _buildAppBar() {
+  PreferredSizeWidget _buildAppBar(
+      String title, AppColorsScheme c, AppLocalizations l) {
     return PreferredSize(
       preferredSize: const Size.fromHeight(64),
       child: Container(
@@ -110,20 +112,15 @@ class _HomeScreenState extends State<HomeScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             child: Row(
               children: [
-                // Logo AT
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 5,
-                  ),
+                      horizontal: 8, vertical: 5),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.9),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Image(
                     image: const AssetImage('lib/assets/logo_AT.png'),
-                    // width: 48,
-                    // height: 48,
                     fit: BoxFit.contain,
                     errorBuilder: (_, __, ___) => Text(
                       'AT',
@@ -136,7 +133,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 const SizedBox(width: 10),
-                // Titre dynamique
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -151,7 +147,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                       Text(
-                        _titles[_currentIdx],
+                        title,
                         style: GoogleFonts.plusJakartaSans(
                           color: Colors.white.withValues(alpha: 0.65),
                           fontSize: 11,
@@ -160,14 +156,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                 ),
-                // Badge système actif
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
+                      horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: AppColors.greenTint,
+                    color: c.greenTint,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
@@ -183,7 +176,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        'Actif',
+                        l.actif,
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
@@ -194,7 +187,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                // Cloche notifications
                 Stack(
                   clipBehavior: Clip.none,
                   children: [
@@ -247,32 +239,29 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildBottomBar() {
+  Widget _buildBottomBar(AppColorsScheme c, AppLocalizations l) {
     return BottomAppBar(
       shape: const CircularNotchedRectangle(),
       notchMargin: 8,
-      color: AppColors.white,
+      color: c.white,
       elevation: 8,
       shadowColor: const Color(0x200F2F5A),
       child: SizedBox(
         height: 56,
         child: Row(
           children: [
-            // Gauche : Rechercher + Historique
-            Expanded(child: _navItem(0, Icons.search_rounded, 'Rechercher')),
-            Expanded(child: _navItem(1, Icons.history_rounded, 'Historique')),
-            // Espace central pour le FAB
+            Expanded(child: _navItem(0, Icons.search_rounded,    l.rechercher, c)),
+            Expanded(child: _navItem(1, Icons.history_rounded,   l.historique, c)),
             const Expanded(child: SizedBox()),
-            // Droite : Stats + Paramètres
-            Expanded(child: _navItem(3, Icons.bar_chart_rounded, 'Stats')),
-            Expanded(child: _navItem(4, Icons.settings_rounded, 'Params')),
+            Expanded(child: _navItem(3, Icons.bar_chart_rounded, l.statsNav,   c)),
+            Expanded(child: _navItem(4, Icons.settings_rounded,  l.paramsNav,  c)),
           ],
         ),
       ),
     );
   }
 
-  Widget _navItem(int idx, IconData icon, String label) {
+  Widget _navItem(int idx, IconData icon, String label, AppColorsScheme c) {
     final active = _currentIdx == idx;
     return GestureDetector(
       onTap: () => _onNavTap(idx),
@@ -283,7 +272,7 @@ class _HomeScreenState extends State<HomeScreen> {
           Icon(
             icon,
             size: 22,
-            color: active ? AppColors.primary : AppColors.muted,
+            color: active ? AppColors.primary : c.muted,
           ),
           const SizedBox(height: 3),
           Text(
@@ -291,7 +280,7 @@ class _HomeScreenState extends State<HomeScreen> {
             style: GoogleFonts.plusJakartaSans(
               fontSize: 9,
               fontWeight: FontWeight.w700,
-              color: active ? AppColors.primary : AppColors.muted,
+              color: active ? AppColors.primary : c.muted,
             ),
           ),
           const SizedBox(height: 2),
@@ -345,11 +334,7 @@ class _ScannerFab extends StatelessWidget {
             width: 2,
           ),
         ),
-        child: const Icon(
-          Icons.camera_alt_rounded,
-          color: Colors.white,
-          size: 26,
-        ),
+        child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 26),
       ),
     );
   }
@@ -363,18 +348,20 @@ class _HomeTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
+    final l = context.l10n;
+
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(24, 32, 24, 120),
         child: Column(
           children: [
-            // ── Illustration véhicule ──
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 40),
               decoration: BoxDecoration(
-                color: AppColors.white,
+                color: c.white,
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: const [
                   BoxShadow(
@@ -386,14 +373,13 @@ class _HomeTab extends StatelessWidget {
               ),
               child: Column(
                 children: [
-                  // Icône voiture dans un cercle
                   Container(
                     width: 110,
                     height: 110,
                     decoration: BoxDecoration(
                       color: AppColors.primary.withValues(alpha: 0.08),
                       shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.border, width: 1.5),
+                      border: Border.all(color: c.border, width: 1.5),
                     ),
                     child: Stack(
                       alignment: Alignment.center,
@@ -403,7 +389,6 @@ class _HomeTab extends StatelessWidget {
                           size: 54,
                           color: AppColors.primary,
                         ),
-                        // Points d'interrogation décoratifs
                         Positioned(
                           top: 14,
                           right: 14,
@@ -433,21 +418,21 @@ class _HomeTab extends StatelessWidget {
                   ),
                   const SizedBox(height: 20),
                   Text(
-                    'Contrôle d\'immatriculation\ndes véhicules',
+                    l.controleTitre,
                     style: GoogleFonts.playfairDisplay(
                       fontSize: 20,
                       fontWeight: FontWeight.w800,
-                      color: AppColors.text,
+                      color: c.text,
                       height: 1.3,
                     ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Scannez ou saisissez une plaque\npour vérifier l\'accès',
+                    l.controleSubtitle,
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 13,
-                      color: AppColors.muted,
+                      color: c.muted,
                       height: 1.4,
                     ),
                     textAlign: TextAlign.center,
@@ -457,12 +442,11 @@ class _HomeTab extends StatelessWidget {
             ),
             const SizedBox(height: 24),
 
-            // ── Bouton Scanner ──
             _actionButton(
               context: context,
               icon: Icons.camera_alt_rounded,
-              label: 'Scanner une plaque',
-              sublabel: 'Utiliser la caméra',
+              label: l.scannerUnePlaque,
+              sublabel: l.utiliserCamera,
               color: AppColors.green,
               onTap: () => Navigator.push(
                 context,
@@ -471,24 +455,21 @@ class _HomeTab extends StatelessWidget {
             ),
             const SizedBox(height: 12),
 
-            // ── Bouton Saisie manuelle ──
             _actionButton(
               context: context,
               icon: Icons.keyboard_rounded,
-              label: 'Saisir une plaque',
-              sublabel: 'Saisie manuelle',
+              label: l.saisirUnePlaque,
+              sublabel: l.saisieManuelle,
               color: AppColors.primary,
               outlined: true,
               onTap: () {
-                // Passe à l'onglet Rechercher (index 0)
-                final shell = context
-                    .findAncestorStateOfType<_HomeScreenState>();
+                final shell =
+                    context.findAncestorStateOfType<_HomeScreenState>();
                 shell?._onNavTap(0);
               },
             ),
             const SizedBox(height: 32),
 
-            // Infos rapides (depuis StatisticsProvider)
             const _QuickStats(),
           ],
         ),
@@ -505,13 +486,14 @@ class _HomeTab extends StatelessWidget {
     bool outlined = false,
     required VoidCallback onTap,
   }) {
+    final c = context.colors;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         decoration: BoxDecoration(
-          color: outlined ? AppColors.white : color,
+          color: outlined ? c.white : color,
           borderRadius: BorderRadius.circular(14),
           border: outlined ? Border.all(color: color, width: 1.5) : null,
           boxShadow: outlined
@@ -578,50 +560,34 @@ class _HomeTab extends StatelessWidget {
 }
 
 /// Widget des infos rapides (KPIs) sur l'écran d'accueil.
-/// Lit les stats depuis StatisticsProvider (calculées à partir de l'historique).
 class _QuickStats extends StatelessWidget {
   const _QuickStats();
 
   @override
   Widget build(BuildContext context) {
-    final stats = context.watch<StatisticsProvider>().stats;
+    final stats     = context.watch<StatisticsProvider>().stats;
     final total     = stats?.total ?? 0;
     final autorises = stats?.autorises ?? 0;
     final refuses   = (stats?.refuses ?? 0) + (stats?.expires ?? 0);
+    final l         = context.l10n;
 
     return Row(
       children: [
-        Expanded(
-          child: _quickInfo(
-            Icons.check_circle_rounded,
-            '$autorises',
-            'Autorises',
-            AppColors.green,
-          ),
-        ),
+        Expanded(child: _quickInfo(context, Icons.check_circle_rounded,
+            '$autorises', l.autorises, AppColors.green)),
         const SizedBox(width: 10),
-        Expanded(
-          child: _quickInfo(
-            Icons.cancel_rounded,
-            '$refuses',
-            'Refuses',
-            AppColors.danger,
-          ),
-        ),
+        Expanded(child: _quickInfo(context, Icons.cancel_rounded,
+            '$refuses', l.refuses, AppColors.danger)),
         const SizedBox(width: 10),
-        Expanded(
-          child: _quickInfo(
-            Icons.camera_alt_rounded,
-            '$total',
-            'Scans',
-            AppColors.primary,
-          ),
-        ),
+        Expanded(child: _quickInfo(context, Icons.camera_alt_rounded,
+            '$total', l.scans, AppColors.primary)),
       ],
     );
   }
 
-  Widget _quickInfo(IconData icon, String value, String label, Color color) {
+  Widget _quickInfo(BuildContext context, IconData icon, String value,
+      String label, Color color) {
+    final c = context.colors;
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 14),
       decoration: BoxDecoration(
@@ -643,10 +609,7 @@ class _QuickStats extends StatelessWidget {
           ),
           Text(
             label,
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 10,
-              color: AppColors.muted,
-            ),
+            style: GoogleFonts.plusJakartaSans(fontSize: 10, color: c.muted),
           ),
         ],
       ),

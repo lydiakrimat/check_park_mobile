@@ -2,10 +2,12 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import '../l10n/app_localizations.dart';
 import '../providers/history_provider.dart';
 import '../providers/statistics_provider.dart';
 import '../services/statistics_service.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_colors_scheme.dart';
 import '../widgets/stat_card.dart';
 
 /// Ecran des statistiques d'acces — Algerie Telecom.
@@ -74,6 +76,8 @@ class _StatsScreenState extends State<StatsScreen> {
     final statsProv = context.watch<StatisticsProvider>();
     final histProv  = context.watch<HistoryProvider>();
     final stats     = statsProv.stats;
+    final c         = context.colors;
+    final l         = context.l10n;
 
     if (histProv.loading || stats == null) {
       return const Center(
@@ -89,18 +93,18 @@ class _StatsScreenState extends State<StatsScreen> {
         children: [
           // ── Titre ─────────────────────────────────────────────────────────
           Text(
-            'Statistiques',
+            l.statistiquesTitle,
             style: GoogleFonts.playfairDisplay(
               fontSize: 22,
               fontWeight: FontWeight.w800,
-              color: AppColors.text,
+              color: c.text,
             ),
           ),
           const SizedBox(height: 4),
           Text(
-            'Tableau de bord des acces',
+            l.statsSubtitle,
             style: GoogleFonts.plusJakartaSans(
-                fontSize: 12, color: AppColors.muted),
+                fontSize: 12, color: c.muted),
           ),
           const SizedBox(height: 20),
 
@@ -109,7 +113,7 @@ class _StatsScreenState extends State<StatsScreen> {
             children: [
               Expanded(
                 child: StatCard(
-                  label: 'Scans auj.',
+                  label: l.scansAujourd,
                   value: '${statsProv.dailyScans}',
                   icon: Icons.camera_alt_rounded,
                   color: AppColors.primary,
@@ -118,7 +122,7 @@ class _StatsScreenState extends State<StatsScreen> {
               const SizedBox(width: 10),
               Expanded(
                 child: StatCard(
-                  label: 'Autorises',
+                  label: l.autorises,
                   value: '${statsProv.dailyAutorises}',
                   icon: Icons.check_circle_rounded,
                   color: AppColors.green,
@@ -127,7 +131,7 @@ class _StatsScreenState extends State<StatsScreen> {
               const SizedBox(width: 10),
               Expanded(
                 child: StatCard(
-                  label: 'Refuses',
+                  label: l.refuses,
                   value: '${statsProv.dailyRefuses}',
                   icon: Icons.cancel_rounded,
                   color: AppColors.danger,
@@ -138,35 +142,35 @@ class _StatsScreenState extends State<StatsScreen> {
           const SizedBox(height: 24),
 
           // ── PieChart : repartition autorises / refuses aujourd'hui ─────────
-          _sectionLabel("REPARTITION DES ACCES AUJOURD'HUI"),
+          _sectionLabel(l.repartitionDuJour, c),
           const SizedBox(height: 14),
-          _buildCard(child: _buildTodayPieChart(stats)),
+          _buildCard(child: _buildTodayPieChart(stats, c, l), c: c),
           const SizedBox(height: 24),
 
           // ── BarChart : total acces par jour (7 derniers jours) ─────────────
-          _sectionLabel('ACCES PAR JOUR (7 DERNIERS JOURS)'),
+          _sectionLabel(l.acces7Jours, c),
           const SizedBox(height: 14),
-          _buildCard(child: _buildWeeklyBarChart(stats)),
+          _buildCard(child: _buildWeeklyBarChart(stats, c, l), c: c),
           const SizedBox(height: 24),
 
           // ── BarChart : distribution horaire sur 7 jours ────────────────────
-          _sectionLabel('DISTRIBUTION HORAIRE DES ACCES (7 DERNIERS JOURS)'),
+          _sectionLabel(l.distributionHoraire, c),
           const SizedBox(height: 14),
-          _buildCard(child: _buildHourlyChart(stats)),
+          _buildCard(child: _buildHourlyChart(stats, c, l), c: c),
           const SizedBox(height: 24),
 
           // ── Barres horizontales : Top 5 vehicules ─────────────────────────
-          _sectionLabel('TOP 5 VEHICULES LES PLUS FREQUENTS'),
+          _sectionLabel(l.top5Vehicules, c),
           const SizedBox(height: 14),
-          _buildCard(child: _buildTop5Chart(stats)),
+          _buildCard(child: _buildTop5Chart(stats, c, l), c: c),
           const SizedBox(height: 24),
 
           // ── Grouped BarChart : autorises vs refuses par jour ───────────────
-          _sectionLabel('AUTORISES VS REFUSES (7 DERNIERS JOURS)'),
+          _sectionLabel(l.autorisesVsRefuses, c),
           const SizedBox(height: 14),
-          _buildCard(child: _buildGroupedBarChart(stats)),
+          _buildCard(child: _buildGroupedBarChart(stats, c, l), c: c),
 
-          SizedBox(height: MediaQuery.of(context).padding.bottom),        
+          SizedBox(height: MediaQuery.of(context).padding.bottom),
         ],
       ),
     );
@@ -174,23 +178,23 @@ class _StatsScreenState extends State<StatsScreen> {
 
   // ── Section label ──────────────────────────────────────────────────────────
 
-  Widget _sectionLabel(String t) => Text(
-        t,
+  Widget _sectionLabel(String t, AppColorsScheme c) => Text(
+        t.toUpperCase(),
         style: GoogleFonts.plusJakartaSans(
           fontSize: 10,
           fontWeight: FontWeight.w700,
-          color: AppColors.muted,
+          color: c.muted,
           letterSpacing: 1.0,
         ),
       );
 
-  // ── Carte blanche avec ombre (contenant des charts) ───────────────────────
+  // ── Carte avec ombre (contenant des charts) ───────────────────────────────
 
-  Widget _buildCard({required Widget child}) {
+  Widget _buildCard({required Widget child, required AppColorsScheme c}) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.white,
+        color: c.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: const [
           BoxShadow(
@@ -206,7 +210,8 @@ class _StatsScreenState extends State<StatsScreen> {
 
   // ── PieChart : repartition autorises / refuses (donnees d'aujourd'hui) ─────
 
-  Widget _buildTodayPieChart(StatsData stats) {
+  Widget _buildTodayPieChart(StatsData stats, AppColorsScheme c,
+      AppLocalizations l) {
     final todayTotal = stats.todayAutorise + stats.todayRefuse;
 
     if (todayTotal == 0) {
@@ -214,15 +219,15 @@ class _StatsScreenState extends State<StatsScreen> {
         height: 160,
         child: Center(
           child: Text(
-            "Aucun acces aujourd'hui",
-            style: GoogleFonts.plusJakartaSans(color: AppColors.muted),
+            l.aucunAcces,
+            style: GoogleFonts.plusJakartaSans(color: c.muted),
           ),
         ),
       );
     }
 
-    final pctOk  = stats.todayAutorise / todayTotal * 100;
-    final pctKo  = stats.todayRefuse   / todayTotal * 100;
+    final pctOk = stats.todayAutorise / todayTotal * 100;
+    final pctKo = stats.todayRefuse   / todayTotal * 100;
 
     return Column(
       children: [
@@ -265,24 +270,17 @@ class _StatsScreenState extends State<StatsScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _legendItem(
-              AppColors.green,
-              'Autorises',
-              '${stats.todayAutorise}',
-            ),
+            _legendItem(AppColors.green, l.autorises, '${stats.todayAutorise}', c),
             const SizedBox(width: 24),
-            _legendItem(
-              AppColors.danger,
-              'Refuses',
-              '${stats.todayRefuse}',
-            ),
+            _legendItem(AppColors.danger, l.refuses, '${stats.todayRefuse}', c),
           ],
         ),
       ],
     );
   }
 
-  Widget _legendItem(Color c, String label, String value) {
+  Widget _legendItem(Color color, String label, String value,
+      AppColorsScheme c) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -290,17 +288,17 @@ class _StatsScreenState extends State<StatsScreen> {
           width: 12,
           height: 12,
           decoration: BoxDecoration(
-            color: c,
+            color: color,
             borderRadius: BorderRadius.circular(3),
           ),
         ),
         const SizedBox(width: 6),
         Text(
-          '$label $value',
+          value.isEmpty ? label : '$label $value',
           style: GoogleFonts.plusJakartaSans(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: AppColors.text,
+            color: c.text,
           ),
         ),
       ],
@@ -309,7 +307,8 @@ class _StatsScreenState extends State<StatsScreen> {
 
   // ── BarChart : total acces par jour (7 jours) — barres personnalisees ───────
 
-  Widget _buildWeeklyBarChart(StatsData stats) {
+  Widget _buildWeeklyBarChart(StatsData stats, AppColorsScheme c,
+      AppLocalizations l) {
     final maxCount = stats.last7Days
         .map((d) => d.count)
         .fold(0, (a, b) => a > b ? a : b);
@@ -319,8 +318,8 @@ class _StatsScreenState extends State<StatsScreen> {
         height: 120,
         child: Center(
           child: Text(
-            'Aucun acces sur les 7 derniers jours',
-            style: GoogleFonts.plusJakartaSans(color: AppColors.muted),
+            l.aucunAcces,
+            style: GoogleFonts.plusJakartaSans(color: c.muted),
           ),
         ),
       );
@@ -331,12 +330,12 @@ class _StatsScreenState extends State<StatsScreen> {
       mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: stats.last7Days.map((day) {
         final pct = maxCount > 0 ? day.count / maxCount : 0.0;
-        return _weekBar(day.label, pct.clamp(0.05, 1.0), day.count);
+        return _weekBar(day.label, pct.clamp(0.05, 1.0), day.count, c);
       }).toList(),
     );
   }
 
-  Widget _weekBar(String day, double pct, int count) {
+  Widget _weekBar(String day, double pct, int count, AppColorsScheme c) {
     const maxH = 90.0;
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -353,20 +352,20 @@ class _StatsScreenState extends State<StatsScreen> {
         Container(
           width: 26,
           height: maxH * pct,
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [AppColors.primaryLight, AppColors.primary],
             ),
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.all(Radius.circular(6)),
           ),
         ),
         const SizedBox(height: 6),
         Text(
           day,
           style: GoogleFonts.plusJakartaSans(
-              fontSize: 10, color: AppColors.muted),
+              fontSize: 10, color: c.muted),
         ),
       ],
     );
@@ -374,7 +373,8 @@ class _StatsScreenState extends State<StatsScreen> {
 
   // ── BarChart : distribution horaire (7h-20h) via fl_chart ──────────────────
 
-  Widget _buildHourlyChart(StatsData stats) {
+  Widget _buildHourlyChart(StatsData stats, AppColorsScheme c,
+      AppLocalizations l) {
     // Plage horaire affichee : heures d'ouverture du parking (7h a 20h inclus).
     const hourStart = 7;
     const hourEnd   = 20;
@@ -391,8 +391,8 @@ class _StatsScreenState extends State<StatsScreen> {
         height: 160,
         child: Center(
           child: Text(
-            'Aucun acces sur les 7 derniers jours',
-            style: GoogleFonts.plusJakartaSans(color: AppColors.muted),
+            l.aucunAcces,
+            style: GoogleFonts.plusJakartaSans(color: c.muted),
           ),
         ),
       );
@@ -444,7 +444,7 @@ class _StatsScreenState extends State<StatsScreen> {
                           '${hour}h',
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 9,
-                            color: AppColors.muted,
+                            color: c.muted,
                           ),
                         ),
                       );
@@ -462,7 +462,7 @@ class _StatsScreenState extends State<StatsScreen> {
                     // Reconvertit l'index de barre (0-13) en heure reelle (7h-20h).
                     final hour = hourStart + group.x.toInt();
                     return BarTooltipItem(
-                      '${hour}h\n${rod.toY.toInt()} acces',
+                      '${hour}h\n${rod.toY.toInt()}',
                       GoogleFonts.plusJakartaSans(
                         color: Colors.white,
                         fontSize: 11,
@@ -481,14 +481,15 @@ class _StatsScreenState extends State<StatsScreen> {
 
   // ── Barres horizontales : Top 5 vehicules ─────────────────────────────────
 
-  Widget _buildTop5Chart(StatsData stats) {
+  Widget _buildTop5Chart(StatsData stats, AppColorsScheme c,
+      AppLocalizations l) {
     if (stats.top5Vehicles.isEmpty) {
       return SizedBox(
         height: 100,
         child: Center(
           child: Text(
-            'Aucun acces enregistre',
-            style: GoogleFonts.plusJakartaSans(color: AppColors.muted),
+            l.aucunAcces,
+            style: GoogleFonts.plusJakartaSans(color: c.muted),
           ),
         ),
       );
@@ -512,7 +513,7 @@ class _StatsScreenState extends State<StatsScreen> {
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.text,
+                    color: c.text,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -525,7 +526,7 @@ class _StatsScreenState extends State<StatsScreen> {
                     Container(
                       height: 24,
                       decoration: BoxDecoration(
-                        color: AppColors.background,
+                        color: c.background,
                         borderRadius: BorderRadius.circular(6),
                       ),
                     ),
@@ -533,11 +534,11 @@ class _StatsScreenState extends State<StatsScreen> {
                       widthFactor: fraction.clamp(0.04, 1.0),
                       child: Container(
                         height: 24,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
                             colors: [AppColors.primaryLight, AppColors.primary],
                           ),
-                          borderRadius: BorderRadius.circular(6),
+                          borderRadius: BorderRadius.all(Radius.circular(6)),
                         ),
                       ),
                     ),
@@ -567,7 +568,8 @@ class _StatsScreenState extends State<StatsScreen> {
 
   // ── Grouped BarChart : autorises (vert) vs refuses (rouge) par jour ─────────
 
-  Widget _buildGroupedBarChart(StatsData stats) {
+  Widget _buildGroupedBarChart(StatsData stats, AppColorsScheme c,
+      AppLocalizations l) {
     // Valeur max pour definir l'echelle Y.
     final maxY = stats.last7DaysStatus
         .expand((d) => [d.autorises, d.refuses])
@@ -579,8 +581,8 @@ class _StatsScreenState extends State<StatsScreen> {
         height: 160,
         child: Center(
           child: Text(
-            'Aucun acces sur les 7 derniers jours',
-            style: GoogleFonts.plusJakartaSans(color: AppColors.muted),
+            l.aucunAcces,
+            style: GoogleFonts.plusJakartaSans(color: c.muted),
           ),
         ),
       );
@@ -641,7 +643,7 @@ class _StatsScreenState extends State<StatsScreen> {
                           '${value.toInt()}',
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 10,
-                            color: AppColors.muted,
+                            color: c.muted,
                           ),
                           textAlign: TextAlign.right,
                         ),
@@ -668,7 +670,7 @@ class _StatsScreenState extends State<StatsScreen> {
                           stats.last7DaysStatus[idx].label,
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 10,
-                            color: AppColors.muted,
+                            color: c.muted,
                           ),
                         ),
                       );
@@ -680,8 +682,8 @@ class _StatsScreenState extends State<StatsScreen> {
                 show: true,
                 drawVerticalLine: false,
                 horizontalInterval: interval,
-                getDrawingHorizontalLine: (_) => const FlLine(
-                  color: AppColors.border,
+                getDrawingHorizontalLine: (_) => FlLine(
+                  color: c.border,
                   strokeWidth: 0.8,
                 ),
               ),
@@ -691,7 +693,7 @@ class _StatsScreenState extends State<StatsScreen> {
                   getTooltipColor: (_) =>
                       AppColors.primaryDark.withValues(alpha: 0.85),
                   getTooltipItem: (group, _, rod, rodIdx) {
-                    final label = rodIdx == 0 ? 'Autorises' : 'Refuses';
+                    final label = rodIdx == 0 ? l.autorises : l.refuses;
                     return BarTooltipItem(
                       '$label\n${rod.toY.toInt()}',
                       GoogleFonts.plusJakartaSans(
@@ -711,9 +713,9 @@ class _StatsScreenState extends State<StatsScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _legendItem(AppColors.green, 'Autorises', ''),
+            _legendItem(AppColors.green, l.autorises, '', c),
             const SizedBox(width: 24),
-            _legendItem(AppColors.danger, 'Refuses', ''),
+            _legendItem(AppColors.danger, l.refuses, '', c),
           ],
         ),
       ],

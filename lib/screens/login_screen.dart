@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import '../l10n/app_localizations.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_colors_scheme.dart';
 import '../providers/auth_provider.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -31,10 +33,9 @@ class _LoginScreenState extends State<LoginScreen>
       vsync: this,
       duration: const Duration(milliseconds: 350),
     );
-    _shakeAnim = Tween<double>(
-      begin: 0,
-      end: 1,
-    ).animate(CurvedAnimation(parent: _shakeCtrl, curve: Curves.elasticIn));
+    _shakeAnim = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _shakeCtrl, curve: Curves.elasticIn),
+    );
   }
 
   @override
@@ -52,17 +53,15 @@ class _LoginScreenState extends State<LoginScreen>
     }
     setState(() => _loading = true);
 
-    // Appel au AuthProvider qui contacte le backend Laravel.
     final success = await context.read<AuthProvider>().login(
-      _userCtrl.text.trim(),
-      _passCtrl.text,
-    );
+          _userCtrl.text.trim(),
+          _passCtrl.text,
+        );
 
     if (!mounted) return;
     setState(() => _loading = false);
 
     if (!success) {
-      // Affiche le message d'erreur retourné par le serveur.
       final errorMsg = context.read<AuthProvider>().errorMessage ??
           'Identifiants incorrects.';
       _shakeCtrl.forward(from: 0);
@@ -75,24 +74,22 @@ class _LoginScreenState extends State<LoginScreen>
         ),
       );
     }
-    // Si success = true, le router dans app.dart navigue automatiquement
-    // vers HomeScreen car AuthProvider.status passe à authenticated.
   }
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
+    final l = context.l10n;
     final size = MediaQuery.of(context).size;
+
     return Scaffold(
-      backgroundColor: AppColors.white,
+      backgroundColor: c.white,
       body: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
         child: Column(
           children: [
-            // ---- En-tête gradient courbé ----
             _buildHeader(size),
             const SizedBox(height: 24),
-
-            // ---- Formulaire ----
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Form(
@@ -101,43 +98,43 @@ class _LoginScreenState extends State<LoginScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Connexion',
+                      l.connexion,
                       style: GoogleFonts.playfairDisplay(
                         fontSize: 26,
                         fontWeight: FontWeight.w800,
-                        color: AppColors.text,
+                        color: c.text,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Identifiez-vous pour accéder au système',
+                      l.loginSubtitle,
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 13,
-                        color: AppColors.muted,
+                        color: c.muted,
                       ),
                     ),
                     const SizedBox(height: 28),
 
-                    // Email (identifiant de connexion)
-                    _label('ADRESSE EMAIL'),
+                    _label(l.labelEmail, c),
                     const SizedBox(height: 6),
                     _inputField(
+                      c: c,
                       ctrl: _userCtrl,
-                      hint: 'Entrez votre adresse email',
+                      hint: l.hintEmail,
                       icon: Icons.email_outlined,
                       keyboardType: TextInputType.emailAddress,
                       validator: (v) => (v == null || v.trim().isEmpty)
-                          ? 'Champ obligatoire'
+                          ? l.champObligatoire
                           : null,
                     ),
                     const SizedBox(height: 18),
 
-                    // Mot de passe
-                    _label('MOT DE PASSE'),
+                    _label(l.labelPassword, c),
                     const SizedBox(height: 6),
                     _inputField(
+                      c: c,
                       ctrl: _passCtrl,
-                      hint: 'Entrez votre mot de passe',
+                      hint: l.hintPassword,
                       icon: Icons.lock_outline_rounded,
                       obscure: _obscure,
                       suffix: GestureDetector(
@@ -151,11 +148,10 @@ class _LoginScreenState extends State<LoginScreen>
                         ),
                       ),
                       validator: (v) =>
-                          (v == null || v.isEmpty) ? 'Champ obligatoire' : null,
+                          (v == null || v.isEmpty) ? l.champObligatoire : null,
                     ),
                     const SizedBox(height: 28),
 
-                    // Bouton connexion
                     AnimatedBuilder(
                       animation: _shakeAnim,
                       builder: (_, child) {
@@ -164,9 +160,7 @@ class _LoginScreenState extends State<LoginScreen>
                                     (_shakeCtrl.value < 0.5 ? 1 : -1))
                                 .toDouble();
                         return Transform.translate(
-                          offset: Offset(dx, 0),
-                          child: child,
-                        );
+                            offset: Offset(dx, 0), child: child);
                       },
                       child: SizedBox(
                         width: double.infinity,
@@ -184,9 +178,7 @@ class _LoginScreenState extends State<LoginScreen>
                             borderRadius: BorderRadius.circular(12),
                             boxShadow: [
                               BoxShadow(
-                                color: AppColors.primary.withValues(
-                                  alpha: 0.35,
-                                ),
+                                color: AppColors.primary.withValues(alpha: 0.35),
                                 blurRadius: 20,
                                 offset: const Offset(0, 6),
                               ),
@@ -210,13 +202,10 @@ class _LoginScreenState extends State<LoginScreen>
                                       strokeWidth: 2.5,
                                     ),
                                   )
-                                : const Icon(
-                                    Icons.login_rounded,
-                                    color: Colors.white,
-                                    size: 20,
-                                  ),
+                                : const Icon(Icons.login_rounded,
+                                    color: Colors.white, size: 20),
                             label: Text(
-                              _loading ? 'Connexion...' : 'Se connecter',
+                              _loading ? l.connexionEnCours : l.seConnecter,
                               style: GoogleFonts.plusJakartaSans(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w700,
@@ -232,14 +221,12 @@ class _LoginScreenState extends State<LoginScreen>
                 ),
               ),
             ),
-
-            // ---- Pied de page ----
             Padding(
               padding: const EdgeInsets.only(bottom: 28),
               child: Text(
-                'Algérie Télécom — Unité Recherche et Développement',
+                l.footer,
                 style: GoogleFonts.plusJakartaSans(
-                  color: AppColors.muted,
+                  color: c.muted,
                   fontSize: 11,
                 ),
                 textAlign: TextAlign.center,
@@ -254,7 +241,6 @@ class _LoginScreenState extends State<LoginScreen>
   Widget _buildHeader(Size size) {
     return Stack(
       children: [
-        // Fond gradient avec clip courbé en bas
         ClipPath(
           clipper: _CurvedClipper(),
           child: Container(
@@ -269,7 +255,6 @@ class _LoginScreenState extends State<LoginScreen>
             ),
           ),
         ),
-        // Cercle décoratif
         Positioned(
           top: -30,
           right: -30,
@@ -282,7 +267,6 @@ class _LoginScreenState extends State<LoginScreen>
             ),
           ),
         ),
-        // Contenu
         Center(
           child: SafeArea(
             child: SizedBox(
@@ -290,7 +274,6 @@ class _LoginScreenState extends State<LoginScreen>
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Logo AT
                   Container(
                     width: 80,
                     height: 80,
@@ -311,16 +294,11 @@ class _LoginScreenState extends State<LoginScreen>
                         children: [
                           Image(
                             image: const AssetImage('lib/assets/logo_AT.png'),
-                            // width: 48,
-                            // height: 48,
                             fit: BoxFit.contain,
                             errorBuilder: (_, __, ___) => Column(
                               children: [
-                                const Icon(
-                                  Icons.security_rounded,
-                                  color: AppColors.primaryDark,
-                                  size: 28,
-                                ),
+                                const Icon(Icons.security_rounded,
+                                    color: AppColors.primaryDark, size: 28),
                                 const SizedBox(height: 2),
                                 Text(
                                   'AT',
@@ -331,7 +309,7 @@ class _LoginScreenState extends State<LoginScreen>
                                   ),
                                 ),
                               ],
-                            )
+                            ),
                           ),
                         ],
                       ),
@@ -363,17 +341,18 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  Widget _label(String t) => Text(
-    t,
-    style: GoogleFonts.plusJakartaSans(
-      fontSize: 10,
-      fontWeight: FontWeight.w700,
-      color: AppColors.muted,
-      letterSpacing: 0.8,
-    ),
-  );
+  Widget _label(String t, AppColorsScheme c) => Text(
+        t,
+        style: GoogleFonts.plusJakartaSans(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          color: c.muted,
+          letterSpacing: 0.8,
+        ),
+      );
 
   Widget _inputField({
+    required AppColorsScheme c,
     required TextEditingController ctrl,
     required String hint,
     required IconData icon,
@@ -386,7 +365,7 @@ class _LoginScreenState extends State<LoginScreen>
       controller: ctrl,
       obscureText: obscure,
       keyboardType: keyboardType,
-      style: GoogleFonts.plusJakartaSans(fontSize: 14, color: AppColors.text),
+      style: GoogleFonts.plusJakartaSans(fontSize: 14, color: c.text),
       validator: validator,
       decoration: InputDecoration(
         hintText: hint,
@@ -398,10 +377,10 @@ class _LoginScreenState extends State<LoginScreen>
             ? Padding(padding: const EdgeInsets.only(right: 12), child: suffix)
             : null,
         filled: true,
-        fillColor: AppColors.background,
+        fillColor: c.background,
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.border, width: 1.5),
+          borderSide: BorderSide(color: c.border, width: 1.5),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -419,7 +398,8 @@ class _LoginScreenState extends State<LoginScreen>
           color: AppColors.danger,
           fontSize: 11,
         ),
-        contentPadding: const EdgeInsets.symmetric(vertical: 15, horizontal: 4),
+        contentPadding:
+            const EdgeInsets.symmetric(vertical: 15, horizontal: 4),
       ),
     );
   }

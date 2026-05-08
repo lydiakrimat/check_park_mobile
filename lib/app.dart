@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
+import 'providers/locale_provider.dart';
+import 'providers/theme_provider.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
@@ -13,17 +16,30 @@ import 'theme/app_theme.dart';
 ///   - [LoginScreen]   : si non connecté
 ///   - [HomeScreen]    : si connecté avec le rôle AgentSecurite
 ///
-/// La navigation est réactive : si le token expire ou si l'agent se déconnecte,
-/// l'app revient automatiquement sur LoginScreen sans action supplémentaire.
+/// Écoute [ThemeProvider] pour basculer entre mode clair/sombre.
+/// Écoute [LocaleProvider] pour la langue et le sens RTL/LTR.
 class ALPRApp extends StatelessWidget {
   const ALPRApp({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final themeMode = context.watch<ThemeProvider>().mode;
+    final locale    = context.watch<LocaleProvider>().locale;
+
     return MaterialApp(
       title: 'ALPR — Algérie Télécom',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.light,
+      theme:      AppTheme.light,
+      darkTheme:  AppTheme.dark,
+      themeMode:  themeMode,
+      locale:     locale,
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      // Locales supportées — Flutter active RTL automatiquement pour 'ar'.
+      supportedLocales: const [Locale('fr'), Locale('ar')],
       home: const _AppRouter(),
     );
   }
@@ -41,7 +57,6 @@ class _AppRouterState extends State<_AppRouter> {
   @override
   void initState() {
     super.initState();
-    // Vérifie si un token est déjà stocké localement au démarrage.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<AuthProvider>().checkAuthStatus();
     });
@@ -53,7 +68,6 @@ class _AppRouterState extends State<_AppRouter> {
 
     switch (authStatus) {
       case AuthStatus.checking:
-        // Affiche le splash screen pendant la vérification du token.
         return const SplashScreen();
       case AuthStatus.authenticated:
         return const HomeScreen();

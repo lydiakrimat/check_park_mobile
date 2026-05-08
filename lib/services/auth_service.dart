@@ -143,6 +143,41 @@ class AuthService {
     await _prefs!.remove(AppConstants.userKey);
   }
 
+  // ── Mise à jour du profil ──────────────────────────────────────────────────
+
+  /// Sauvegarde un UserModel mis à jour dans le cache SharedPreferences.
+  Future<void> saveUserToCache(UserModel user) async {
+    await init();
+    await _prefs!.setString(AppConstants.userKey, jsonEncode(user.toJson()));
+  }
+
+  /// Met à jour le profil de l'agent via PUT /api/utilisateurs/{id}.
+  /// Sauvegarde automatiquement le résultat dans le cache local.
+  Future<UserModel> updateProfile({
+    required int id,
+    required String nom,
+    required String prenom,
+    required String email,
+    required String role,
+    String? telephone,
+  }) async {
+    await init();
+    final api = ApiService(getToken: getStoredToken);
+    final body = <String, dynamic>{
+      'nom': nom,
+      'prenom': prenom,
+      'email': email,
+      'role': role,
+    };
+    if (telephone != null && telephone.trim().isNotEmpty) {
+      body['telephone'] = telephone.trim();
+    }
+    final data = await api.put('${ApiConfig.utilisateursUrl}/$id', body);
+    final updated = UserModel.fromJson(data as Map<String, dynamic>);
+    await saveUserToCache(updated);
+    return updated;
+  }
+
   // ── Récupération du user depuis le serveur ─────────────────────────────────
 
   /// Récupère les infos à jour de l'utilisateur connecté depuis le serveur.
