@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_colors.dart';
+import '../utils/responsive.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -72,8 +73,8 @@ class _SplashScreenState extends State<SplashScreen>
                     children: [
                       // Logo container
                       Container(
-                        width: 100,
-                        height: 100,
+                        width: Responsive.rw(context, 100),
+                        height: Responsive.rw(context, 100),
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.95),
                           borderRadius: BorderRadius.circular(24),

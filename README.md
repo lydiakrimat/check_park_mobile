@@ -1,33 +1,29 @@
 # Check Park Mobile — Application Flutter ALPR
 
-Application mobile de contrôle des immatriculations de véhicules pour les agents de sécurité d'Algérie Télécom.
-Développée avec Flutter, elle communique avec deux backends : le **backend Laravel** (gestion des données) et le **AI Service FastAPI** (pipeline de reconnaissance de plaques).
+Application mobile de controle des immatriculations de vehicules pour les agents de securite d'Algerie Telecom.
+Developpee avec Flutter, elle communique avec deux backends : le **backend Laravel** (gestion des donnees) et le **AI Service FastAPI** (pipeline de reconnaissance de plaques).
 
 ---
-
-## État actuel du projet (session 2026-05-08 / 09)
 
 ### Ce qui fonctionne
 - Authentification JWT (login / logout / persistance du token)
 - Dark mode + Light mode (ThemeProvider)
-- Changement de langue français / arabe avec RTL (LocaleProvider)
-- Écran Scanner : caméra, cadre dynamique, overlay de chargement, résultat OK/refusé/non détecté
+- Changement de langue francais / arabe avec RTL (LocaleProvider)
+- Ecran Scanner : camera, cadre dynamique, overlay de chargement, resultat OK/refuse/non detecte
 - Recherche manuelle de plaque (POST /verify)
-- Historique des accès avec filtres
+- Historique des acces avec filtres
 - Notifications avec compteur non-lues
 - Statistiques (graphiques fl_chart)
-- Paramètres (profil agent, thème, langue)
+- Parametres (profil agent, theme, langue)
+- Layout responsive sur toutes les tailles d'ecran (360px a 430px+)
+- Textes UI en francais avec accents corrects
 
-### Testé et confirmé fonctionnel
-- Émulateur Android AVD avec `_host = '10.0.2.2'`
-- Serveur Laravel répond en 57ms (confirmé par curl)
-- AI Service FastAPI répond correctement au POST /scan avec image JPEG
-
-### Problème réseau téléphone physique (non bloquant)
-Le téléphone physique ne peut pas atteindre le Mac via WiFi même avec la bonne IP (192.168.1.6).
-Hypothèse : **AP Isolation** (isolation client) activée sur le routeur.
-Solution : désactiver l'AP Isolation dans les paramètres du routeur, ou utiliser USB tethering.
-Pour continuer à développer : utiliser l'émulateur AVD avec `10.0.2.2`.
+### Teste et confirme fonctionnel
+- Emulateur Android AVD avec `_host = '10.0.2.2'`
+- Telephone physique Android via USB avec `_host = '192.168.1.3'`
+- Serveur Laravel repond en 57ms (confirme par curl)
+- AI Service FastAPI repond correctement au POST /scan avec image JPEG
+- Les deux backends ecoutent sur `0.0.0.0` (accessible depuis le reseau local)
 
 ---
 
@@ -36,32 +32,32 @@ Pour continuer à développer : utiliser l'émulateur AVD avec `10.0.2.2`.
 - **Framework** : Flutter (Dart), SDK ^3.8.1
 - **State management** : Provider (`ChangeNotifier`)
 - **HTTP** : package `http` (REST + multipart/form-data)
-- **Stockage local** : `shared_preferences` (token JWT + préférences)
-- **Caméra** : package `camera` (capture photo native)
+- **Stockage local** : `shared_preferences` (token JWT + preferences)
+- **Camera** : package `camera` (capture photo native)
 - **Polices** : Google Fonts — Plus Jakarta Sans
 - **Charts** : fl_chart (graphiques statistiques)
 - **Localisation** : flutter_localizations (fr + ar, RTL auto)
 
 ---
 
-## Configuration réseau — IMPORTANT
+## Configuration reseau — IMPORTANT
 
 Fichier : `lib/config/api_config.dart`
 
 ```dart
-// Pour émulateur Android (AVD) :
-static const String _host = '10.0.2.2';
+// Pour emulateur Android (AVD) :
+//static const String _host = '10.0.2.2';
 
-// Pour vrai téléphone physique (même réseau WiFi que le Mac) :
-// static const String _host = '192.168.1.6';  // adapter selon ipconfig getifaddr en0
+// Pour vrai telephone physique (meme reseau WiFi que le Mac) :
+static const String _host = '192.168.1.3';  // adapter selon ifconfig | grep inet
 ```
 
-**Avant chaque session de développement :**
-- Vérifier l'IP actuelle du Mac : `ipconfig getifaddr en0`
-- Si tu testes sur émulateur : `_host = '10.0.2.2'`
-- Si tu testes sur téléphone physique : `_host = '<IP du Mac>'`
+**Avant chaque session de developpement :**
+- Verifier l'IP actuelle du Mac : `ifconfig | grep "inet " | grep -v 127`
+- Si tu testes sur emulateur : `_host = '10.0.2.2'`
+- Si tu testes sur telephone physique : `_host = '<IP du Mac>'`
 
-**Les deux backends doivent écouter sur `0.0.0.0` (pas `127.0.0.1`) :**
+**Les deux backends doivent ecouter sur `0.0.0.0` (pas `127.0.0.1`) :**
 ```bash
 # Laravel
 php artisan serve --host=0.0.0.0 --port=8000
@@ -77,13 +73,16 @@ uvicorn main:app --host 0.0.0.0 --port 8080
 ```bash
 flutter pub get
 
-# Émulateur Android (AVD) — s'assurer que _host = '10.0.2.2'
+# Emulateur Android (AVD) — s'assurer que _host = '10.0.2.2'
 flutter run
 
-# APK release pour téléphone physique
+# Telephone physique USB — s'assurer que _host = '<IP du Mac>'
+flutter run
+
+# APK release pour telephone physique
 flutter build apk --release
-# APK généré : build/app/outputs/flutter-apk/app-release.apk
-# Transférer via câble USB ou airdrop, puis installer sur le téléphone
+# APK genere : build/app/outputs/flutter-apk/app-release.apk
+# Transferer via cable USB ou airdrop, puis installer sur le telephone
 ```
 
 ---
@@ -94,19 +93,19 @@ flutter build apk --release
 lib/
 ├── config/
 │   ├── api_config.dart         URLs et timeouts (Laravel :8000, AI Service :8080)
-│   └── app_constants.dart      Clés SharedPreferences, rôle AgentSecurite, seuils, messages d'erreur
+│   └── app_constants.dart      Cles SharedPreferences, role AgentSecurite, seuils, messages d'erreur
 ├── models/
 │   ├── user.dart               UserModel
 │   ├── employee.dart           Employee
 │   ├── vehicle.dart            Vehicle (avec relation employe)
 │   ├── access_record.dart      AccessRecord
 │   ├── notification_model.dart NotificationModel
-│   └── scan_result.dart        ScanResult — réponse du AI Service
+│   └── scan_result.dart        ScanResult — reponse du AI Service
 ├── services/
-│   ├── api_service.dart        Client HTTP générique (injecte le token Bearer, gère erreurs)
+│   ├── api_service.dart        Client HTTP generique (injecte le token Bearer, gere erreurs)
 │   ├── auth_service.dart       Login / logout / stockage token (SharedPreferences)
 │   ├── scan_service.dart       POST /scan (photo multipart) et POST /verify (texte JSON)
-│   ├── camera_service.dart     Initialisation caméra, capture photo
+│   ├── camera_service.dart     Initialisation camera, capture photo
 │   ├── access_service.dart     GET /api/acces
 │   ├── notification_service.dart GET/PUT/DELETE /api/notifications
 │   ├── search_service.dart     Recherche via POST /verify
@@ -115,89 +114,107 @@ lib/
 ├── providers/
 │   ├── auth_provider.dart      AuthStatus {checking, unauthenticated, authenticated}
 │   ├── scan_provider.dart      ScanStatus {idle, capturing, sending, done, error}
-│   ├── history_provider.dart   Liste + filtres des accès
+│   ├── history_provider.dart   Liste + filtres des acces
 │   ├── notification_provider.dart Liste + compteur non lus
-│   ├── statistics_provider.dart KPIs calculés depuis history_provider
+│   ├── statistics_provider.dart KPIs calcules depuis history_provider
 │   ├── locale_provider.dart    Langue active (fr/ar) + Locale Flutter
 │   └── theme_provider.dart     Mode clair/sombre (ThemeMode)
 ├── screens/
-│   ├── splash_screen.dart      Écran de démarrage (logo AT, vérification token)
+│   ├── splash_screen.dart      Ecran de demarrage (logo AT, verification token)
 │   ├── login_screen.dart       Formulaire email + mot de passe
 │   ├── home_screen.dart        Dashboard principal (4 onglets)
-│   ├── scanner_screen.dart     Caméra + cadre véhicule + résultat scan
+│   ├── scanner_screen.dart     Camera + cadre vehicule + resultat scan
 │   ├── search_screen.dart      Recherche manuelle de plaque
-│   ├── history_screen.dart     Historique des accès avec filtres
+│   ├── history_screen.dart     Historique des acces avec filtres
 │   ├── notifications_screen.dart Notifications + marquer comme lues
 │   ├── stats_screen.dart       Graphiques fl_chart (pie, bar, line)
-│   └── settings_screen.dart    Profil agent, thème, langue
+│   └── settings_screen.dart    Profil agent, theme, langue
 ├── widgets/
-│   ├── access_card.dart        Carte d'un enregistrement d'accès
+│   ├── access_card.dart        Carte d'un enregistrement d'acces
 │   ├── notification_card.dart  Carte d'une notification
-│   ├── error_banner.dart       Bannière d'erreur réutilisable (rouge, bouton retry optionnel)
-│   ├── stat_card.dart          Carte KPI (chiffre + libellé)
-│   ├── status_badge.dart       Badge coloré (Autorisé / Refusé / Expiré)
+│   ├── error_banner.dart       Banniere d'erreur reutilisable (rouge, bouton retry optionnel)
+│   ├── stat_card.dart          Carte KPI (chiffre + libelle)
+│   ├── status_badge.dart       Badge colore (Autorise / Refuse / Expire)
 │   ├── plate_badge.dart        Badge plaque d'immatriculation
-│   └── at_header.dart          En-tête Algérie Télécom
+│   └── at_header.dart          En-tete Algerie Telecom (logo contraint a 32px)
 ├── theme/
 │   ├── app_colors.dart         Couleurs de marque (brand colors — fixes, pas de dark mode)
 │   ├── app_colors_scheme.dart  ThemeExtension pour surface/text/border (adaptatif dark/light)
 │   └── app_theme.dart          AppTheme.light et AppTheme.dark
 ├── l10n/
-│   └── app_localizations.dart  Toutes les chaînes FR + AR + extension context.l10n
+│   └── app_localizations.dart  Toutes les chaines FR + AR + extension context.l10n
 ├── utils/
+│   ├── responsive.dart         Helper responsive : Responsive.rw(), Responsive.rh()
 │   ├── validators.dart         Validation email, mot de passe, plaque
 │   ├── date_formatter.dart     Formatage dates
 │   └── plate_formatter.dart    Normalisation et affichage des plaques
-├── app.dart                    ALPRApp + _AppRouter (routing basé sur AuthStatus)
-└── main.dart                   Point d'entrée — MultiProvider + orientations
+├── app.dart                    ALPRApp + _AppRouter (routing base sur AuthStatus)
+└── main.dart                   Point d'entree — MultiProvider + orientations
 ```
 
 ---
 
-## Système de thème (dark mode)
+## Systeme responsive
+
+Helper : `lib/utils/responsive.dart`
+
+```dart
+// Largeur proportionnelle (reference : 390px)
+Responsive.rw(context, 100)  // 100 sur 390px, ~92 sur 360px
+
+// Hauteur proportionnelle (reference : 844px)
+Responsive.rh(context, 200)  // 200 sur 844px, adapte sur d'autres ecrans
+```
+
+Utilise dans : login_screen, splash_screen, home_screen, stats_screen, scanner_screen.
+Toutes les dimensions fixes importantes (containers, charts, logos) utilisent ce helper.
+
+---
+
+## Systeme de theme (dark mode)
 
 ### Deux couches de couleurs
 
 **1. `AppColors` (lib/theme/app_colors.dart) — couleurs de marque fixes**
-Ne changent JAMAIS avec le thème. Toujours accédées via `AppColors.xxx`.
+Ne changent JAMAIS avec le theme. Toujours accedees via `AppColors.xxx`.
 ```dart
 AppColors.primary      // bleu AT
 AppColors.danger       // rouge erreur
-AppColors.success      // vert autorisé
-AppColors.warning      // orange refusé/alerte
+AppColors.success      // vert autorise
+AppColors.warning      // orange refuse/alerte
 AppColors.okText / noText / expText   // textes badges statut
 AppColors.okBg / noBg / expBg (dans AppColorsScheme) // fonds badges
 ```
 
 **2. `AppColorsScheme` (lib/theme/app_colors_scheme.dart) — couleurs adaptatives**
-ThemeExtension — changent entre light et dark. Accédées via `context.colors`.
+ThemeExtension — changent entre light et dark. Accedees via `context.colors`.
 ```dart
 final c = context.colors;
 c.background   // fond principal
 c.surface      // fond carte/conteneur
 c.text         // texte principal
-c.muted        // texte secondaire grisé
+c.muted        // texte secondaire grise
 c.border       // bordures
-c.white        // blanc (inversé en dark: surface sombre)
-c.blueTint     // fond bleu très atténué
-c.orangeTint   // fond orange très atténué
+c.white        // blanc (inverse en dark: surface sombre)
+c.blueTint     // fond bleu tres attenue
+c.orangeTint   // fond orange tres attenue
 c.okBg / noBg / expBg   // fonds badges statut adaptatifs
 ```
 
-### Règle d'utilisation
+### Regle d'utilisation
 - Couleurs de surface/texte/bordures → `context.colors` (adaptatif)
 - Couleurs de marque/statut → `AppColors.xxx` (fixe)
 
 ---
 
-## Système de localisation (FR / AR)
+## Systeme de localisation (FR / AR)
 
 ### Architecture
 - `AppLocalizations(bool _ar)` dans `lib/l10n/app_localizations.dart`
-- Accès via extension : `context.l10n` (retourne l'instance correspondant à la locale active)
+- Acces via extension : `context.l10n` (retourne l'instance correspondant a la locale active)
 - `LocaleProvider` stocke la `Locale` active et notifie l'arbre
 
-### Règle CRITIQUE
+### Regle CRITIQUE
 Dans `AppL10nX` (l'extension `context.l10n`) :
 ```dart
 // TOUJOURS listen: false — sinon crash depuis les event handlers
@@ -216,7 +233,7 @@ localizationsDelegates: const [
 ],
 supportedLocales: const [Locale('fr'), Locale('ar')],
 ```
-Sans ça, les widgets Material (TextField, showModalBottomSheet) crashent avec
+Sans ca, les widgets Material (TextField, showModalBottomSheet) crashent avec
 "No MaterialLocalizations found".
 
 ---
@@ -224,7 +241,7 @@ Sans ça, les widgets Material (TextField, showModalBottomSheet) crashent avec
 ## Flux de scan — photo vers AI Service
 
 ```
-[Écran Scanner]
+[Ecran Scanner]
     │  Bouton capture
     ▼
 ScanProvider.captureAndScan()
@@ -234,36 +251,36 @@ ScanProvider.captureAndScan()
     └─ ScanService.scanPhoto(file)
            │  POST /scan  →  AI Service FastAPI :8080
            │  multipart/form-data  { "image": <fichier JPEG> }
-           │  Content-Type forcé : image/jpeg  (évite HTTP 415)
+           │  Content-Type force : image/jpeg  (evite HTTP 415)
            │
            │  Pipeline IA :
-           │    1. YOLOX      — détection bounding box plaque
-           │    2. PaddleOCR  — lecture des caractères
+           │    1. YOLOX      — detection bounding box plaque
+           │    2. PaddleOCR  — lecture des caracteres
            │    3. Fuzzy matching — comparaison BDD (seuil 80%)
-           │    4. Laravel    — vérification droits d'accès
+           │    4. Laravel    — verification droits d'acces
            │
            │  ← ScanResult JSON
            │    { detected, plate_ocr, plate_matched, similarity_score,
            │      authorized, reason, confidence, bounding_box,
            │      vehicle: {...}, owner: {...} }
            ▼
-    ScanProvider.result  →  Écran affiche résultat (autorisé / refusé / non détecté)
+    ScanProvider.result  →  Ecran affiche resultat (autorise / refuse / non detecte)
 ```
 
-### Résultats possibles du scan
+### Resultats possibles du scan
 | Cas | Condition | Affichage |
 |-----|-----------|-----------|
-| Plaque autorisée | `detected && authorized` | Panel vert |
-| Plaque refusée | `detected && !authorized` | Panel rouge |
-| Plaque non détectée | `!detected` | Panel orange (aucunePlaqueMsg) |
+| Plaque autorisee | `detected && authorized` | Panel vert |
+| Plaque refusee | `detected && !authorized` | Panel rouge |
+| Plaque non detectee | `!detected` | Panel orange (aucunePlaqueMsg) |
 
 ---
 
-## Bugs résolus dans cette session
+## Bugs resolus
 
 ### 1. HTTP 415 lors de l'envoi d'une photo au AI Service
-**Cause :** `http.MultipartFile.fromPath` ne définit pas le Content-Type de la partie fichier
-quand l'extension du fichier temporaire Android n'est pas reconnue. FastAPI rejette alors la requête.
+**Cause :** `http.MultipartFile.fromPath` ne definit pas le Content-Type de la partie fichier
+quand l'extension du fichier temporaire Android n'est pas reconnue. FastAPI rejette alors la requete.
 
 **Fix dans `scan_service.dart` :**
 ```dart
@@ -278,11 +295,11 @@ request.files.add(
   ),
 );
 ```
-`http_parser` doit être déclaré explicitement dans `pubspec.yaml` même si c'est une dépendance transitive de `http`.
+`http_parser` doit etre declare explicitement dans `pubspec.yaml` meme si c'est une dependance transitive de `http`.
 
-### 2. "No MaterialLocalizations found" (crash sur 3 écrans)
-**Cause :** `flutter_localizations` manquait dans `pubspec.yaml` et les delegates n'étaient
-pas déclarés dans `MaterialApp`.
+### 2. "No MaterialLocalizations found" (crash sur 3 ecrans)
+**Cause :** `flutter_localizations` manquait dans `pubspec.yaml` et les delegates n'etaient
+pas declares dans `MaterialApp`.
 
 **Fix :**
 ```yaml
@@ -302,15 +319,15 @@ localizationsDelegates: const [
 
 ### 3. Crash Provider dans dialog de confirmation (search_screen)
 **Cause :** `AppL10nX.l10n` utilisait `Provider.of<LocaleProvider>(this)` avec `listen: true`
-(défaut). Quand appelé depuis un event handler ou un dialog, Flutter lève une exception
-car on essaie d'écouter en dehors de l'arbre de widgets actif.
+(defaut). Quand appele depuis un event handler ou un dialog, Flutter leve une exception
+car on essaie d'ecouter en dehors de l'arbre de widgets actif.
 
 **Fix :** `Provider.of<LocaleProvider>(this, listen: false)`
 
 ### 4. Bug dispose() dans scanner_screen
-**Cause :** `context.read<ScanProvider>()` dans `dispose()` est unsafe après déactivation du widget.
+**Cause :** `context.read<ScanProvider>()` dans `dispose()` est unsafe apres desactivation du widget.
 
-**Fix :** Cacher la référence en `initState` :
+**Fix :** Cacher la reference en `initState` :
 ```dart
 ScanProvider? _scanProv;
 
@@ -330,8 +347,8 @@ void dispose() {
 }
 ```
 
-### 5. Timeout login sur APK release (téléphone physique)
-**Cause :** Android 9+ bloque le trafic HTTP cleartext dans les APK release par défaut.
+### 5. Timeout login sur APK release (telephone physique)
+**Cause :** Android 9+ bloque le trafic HTTP cleartext dans les APK release par defaut.
 Le mode debug (`flutter run`) autorise le cleartext automatiquement — c'est pourquoi
 le login fonctionnait en debug mais pas en release.
 
@@ -342,13 +359,32 @@ le login fonctionnait en debug mais pas en release.
     ...>
 ```
 
+### 6. Logo overflow dans AppBar (session 2026-05-12)
+**Cause :** Le widget `Image` du logo AT dans `at_header.dart` n'avait aucune contrainte de taille.
+Sur certains ecrans, l'image debordait du header.
+
+**Fix :** Envelopper l'`Image` dans un `SizedBox(height: 32)` dans `at_header.dart`.
+
+### 7. Accents manquants dans toute l'UI (session 2026-05-12)
+**Cause :** ~50 chaines utilisateur dans `app_localizations.dart`, `app_constants.dart` et
+`mock_data.dart` etaient ecrites sans accents francais (ex: "Autorise" au lieu de "Autorise").
+
+**Fix :** Correction de toutes les chaines FR avec accents corrects dans les 3 fichiers.
+
+### 8. Layout non responsive (session 2026-05-12)
+**Cause :** Dimensions fixes (width: 260, height: 200, etc.) dans les ecrans login, splash,
+home, stats et scanner causaient des problemes sur petits ecrans (360px).
+
+**Fix :** Creation de `lib/utils/responsive.dart` avec `Responsive.rw()` / `Responsive.rh()`
+et remplacement de toutes les dimensions fixes critiques par des valeurs proportionnelles.
+
 ---
 
 ## Authentification — Sanctum
 
 ### Flux de connexion
 ```
-[Écran Login]
+[Ecran Login]
     │  email + password
     ▼
 AuthProvider.login()
@@ -359,23 +395,23 @@ AuthService.login()
     │
     │  ← { "token": "6|abc...", "user": { id, nom, prenom, role, ... } }
     │
-    ├─ Vérifie role == "AgentSecurite" (double contrôle client)
-    ├─ Token stocké dans SharedPreferences (clé : auth_token)
-    ├─ User stocké dans SharedPreferences (clé : auth_user, JSON)
+    ├─ Verifie role == "AgentSecurite" (double controle client)
+    ├─ Token stocke dans SharedPreferences (cle : auth_token)
+    ├─ User stocke dans SharedPreferences (cle : auth_user, JSON)
     └─ AuthStatus → authenticated → HomeScreen
 ```
 
-### Persistance au redémarrage
+### Persistance au redemarrage
 `_AppRouter.initState` → `AuthProvider.checkAuthStatus()` :
 1. Lecture token depuis SharedPreferences
-2. Si token présent → charge user depuis cache → HomeScreen directement
+2. Si token present → charge user depuis cache → HomeScreen directement
 3. Si absent → LoginScreen
 
 ---
 
-## Endpoints consommés
+## Endpoints consommes
 
-| Service | Méthode | URL | Utilisé par |
+| Service | Methode | URL | Utilise par |
 |---|---|---|---|
 | Laravel | POST | `/api/login/mobile` | AuthService.login() |
 | Laravel | POST | `/api/logout` | AuthService.logout() |
@@ -391,7 +427,7 @@ AuthService.login()
 
 ---
 
-## Dépendances principales
+## Dependances principales
 
 ```yaml
 dependencies:
@@ -400,7 +436,7 @@ dependencies:
   http: ^1.2.2                # REST + multipart
   http_parser: ^4.0.2         # MediaType pour forcer Content-Type image/jpeg (fix 415)
   shared_preferences: ^2.3.4  # Token JWT local
-  camera: ^0.11.0+2           # Caméra native
+  camera: ^0.11.0+2           # Camera native
   provider: ^6.1.2            # State management
   google_fonts: ^6.0.0        # Plus Jakarta Sans
   fl_chart: ^0.70.0           # Graphiques statistiques
@@ -428,24 +464,24 @@ dev_dependencies:
 ## Commandes utiles
 
 ```bash
-# Vérifier les devices connectés
+# Verifier les devices connectes
 flutter devices
 
-# Lancer sur émulateur avec logs
+# Lancer sur emulateur avec logs
 flutter run
 
 # Lancer en release sur device USB (avec logs)
 flutter run --release
 
-# Générer APK release
+# Generer APK release
 flutter build apk --release
 # → build/app/outputs/flutter-apk/app-release.apk
 
-# IP actuelle du Mac sur le réseau local
-ipconfig getifaddr en0
+# IP actuelle du Mac sur le reseau local
+ifconfig | grep "inet " | grep -v 127
 
-# Vérifier que le backend Laravel est joignable
-curl http://192.168.1.6:8000/api/login/mobile \
+# Verifier que le backend Laravel est joignable
+curl http://192.168.1.3:8000/api/login/mobile \
   -X POST \
   -H "Content-Type: application/json" \
   -d '{"email":"votre@email.com","password":"motdepasse"}'

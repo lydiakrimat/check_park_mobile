@@ -54,28 +54,45 @@ class ATHeader extends StatelessWidget {
                   color: Colors.white.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.arrow_back_ios_new_rounded,
-                    color: Colors.white, size: 18),
+                child: const Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: Colors.white,
+                  size: 18,
+                ),
               ),
             ),
           if (showBack) const SizedBox(width: 12),
 
           // Logo AT
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.9),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Text(
-              'AT',
-              style: GoogleFonts.plusJakartaSans(
-                color: AppColors.primaryDark,
-                fontWeight: FontWeight.w900,
-                fontSize: 13,
+            child: SizedBox(
+              height: 32,
+              child: Image(
+                image: const AssetImage('lib/assets/logo_AT.png'),
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => Text(
+                  'AT',
+                  style: GoogleFonts.plusJakartaSans(
+                    color: AppColors.primaryDark,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 13,
+                  ),
+                ),
               ),
             ),
+            // Text(
+            //   'AT',
+            //   style: GoogleFonts.plusJakartaSans(
+            //     color: AppColors.primaryDark,
+            //     fontWeight: FontWeight.w900,
+            //     fontSize: 13,
+            //   ),
+            // ),
           ),
           const SizedBox(width: 12),
 
@@ -124,8 +141,11 @@ class ATHeader extends StatelessWidget {
                       color: Colors.white.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.notifications_outlined,
-                        color: Colors.white, size: 20),
+                    child: const Icon(
+                      Icons.notifications_outlined,
+                      color: Colors.white,
+                      size: 20,
+                    ),
                   ),
                 ),
                 if (unreadCount > 0)
@@ -143,9 +163,10 @@ class ATHeader extends StatelessWidget {
                         child: Text(
                           unreadCount > 9 ? '9+' : '$unreadCount',
                           style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 9,
-                              fontWeight: FontWeight.w800),
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                       ),
                     ),

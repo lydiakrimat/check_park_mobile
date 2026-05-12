@@ -204,18 +204,18 @@ class MockData {
   static List<NotificationEntry> notifications = [
     NotificationEntry(
       id: 'n1',
-      title: 'Acces temporaire expire',
+      title: 'Accès temporaire expiré',
       message:
-          "L'acces temporaire de Aissaoui Nadia (plaque 2475111231) est expire depuis 1h30.",
+          "L'accès temporaire de Aissaoui Nadia (plaque 2475111231) est expiré depuis 1h30.",
       time: '14/04 22:04',
       isRead: false,
       type: 'warning',
     ),
     NotificationEntry(
       id: 'n2',
-      title: "Tentative d'acces refusee",
+      title: "Tentative d'accès refusée",
       message:
-          "Le vehicule avec la plaque 222871 a ete refuse a l'entree du site.",
+          "Le véhicule avec la plaque 222871 a été refusé à l'entrée du site.",
       time: '14/04 22:04',
       isRead: false,
       type: 'danger',

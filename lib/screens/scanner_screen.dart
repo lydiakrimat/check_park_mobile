@@ -7,6 +7,7 @@ import '../providers/scan_provider.dart';
 import '../models/scan_result.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_colors_scheme.dart';
+import '../utils/responsive.dart';
 
 /// Ecran de scan par camera.
 ///
@@ -673,7 +674,7 @@ class _ScannerScreenState extends State<ScannerScreen>
       child: Row(
         children: [
           SizedBox(
-            width: 110,
+            width: Responsive.rw(context, 110),
             child: Text(
               key,
               style: GoogleFonts.plusJakartaSans(

@@ -6,6 +6,7 @@ import '../l10n/app_localizations.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_colors_scheme.dart';
 import '../providers/auth_provider.dart';
+import '../utils/responsive.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -239,13 +240,17 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Widget _buildHeader(Size size) {
+    final headerH = Responsive.rh(context, 260);
+    final circleSize = Responsive.rw(context, 150);
+    final logoSize = Responsive.rw(context, 80);
+
     return Stack(
       children: [
         ClipPath(
           clipper: _CurvedClipper(),
           child: Container(
             width: double.infinity,
-            height: 260,
+            height: headerH,
             decoration: const BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
@@ -259,8 +264,8 @@ class _LoginScreenState extends State<LoginScreen>
           top: -30,
           right: -30,
           child: Container(
-            width: 150,
-            height: 150,
+            width: circleSize,
+            height: circleSize,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: Colors.white.withValues(alpha: 0.07),
@@ -270,13 +275,13 @@ class _LoginScreenState extends State<LoginScreen>
         Center(
           child: SafeArea(
             child: SizedBox(
-              height: 260,
+              height: headerH,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Container(
-                    width: 80,
-                    height: 80,
+                    width: logoSize,
+                    height: logoSize,
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(20),

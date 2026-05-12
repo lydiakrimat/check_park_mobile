@@ -8,6 +8,7 @@ import '../providers/notification_provider.dart';
 import '../providers/statistics_provider.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_colors_scheme.dart';
+import '../utils/responsive.dart';
 import 'history_screen.dart';
 import 'notifications_screen.dart';
 import 'scanner_screen.dart';
@@ -374,8 +375,8 @@ class _HomeTab extends StatelessWidget {
               child: Column(
                 children: [
                   Container(
-                    width: 110,
-                    height: 110,
+                    width: Responsive.rw(context, 110),
+                    height: Responsive.rw(context, 110),
                     decoration: BoxDecoration(
                       color: AppColors.primary.withValues(alpha: 0.08),
                       shape: BoxShape.circle,

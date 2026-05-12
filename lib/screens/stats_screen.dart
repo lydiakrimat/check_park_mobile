@@ -8,6 +8,7 @@ import '../providers/statistics_provider.dart';
 import '../services/statistics_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_colors_scheme.dart';
+import '../utils/responsive.dart';
 import '../widgets/stat_card.dart';
 
 /// Ecran des statistiques d'acces — Algerie Telecom.
@@ -216,7 +217,7 @@ class _StatsScreenState extends State<StatsScreen> {
 
     if (todayTotal == 0) {
       return SizedBox(
-        height: 160,
+        height: Responsive.rh(context, 160),
         child: Center(
           child: Text(
             l.aucunAcces,
@@ -232,7 +233,7 @@ class _StatsScreenState extends State<StatsScreen> {
     return Column(
       children: [
         SizedBox(
-          height: 200,
+          height: Responsive.rh(context, 200),
           child: PieChart(
             PieChartData(
               sectionsSpace: 3,
@@ -315,7 +316,7 @@ class _StatsScreenState extends State<StatsScreen> {
 
     if (maxCount == 0) {
       return SizedBox(
-        height: 120,
+        height: Responsive.rh(context, 120),
         child: Center(
           child: Text(
             l.aucunAcces,
@@ -388,7 +389,7 @@ class _StatsScreenState extends State<StatsScreen> {
 
     if (maxH == 0) {
       return SizedBox(
-        height: 160,
+        height: Responsive.rh(context, 160),
         child: Center(
           child: Text(
             l.aucunAcces,
@@ -400,7 +401,7 @@ class _StatsScreenState extends State<StatsScreen> {
 
     // 14 barres (7h-20h) dans un scroll horizontal.
     return SizedBox(
-      height: 180,
+      height: Responsive.rh(context, 180),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: SizedBox(
@@ -485,7 +486,7 @@ class _StatsScreenState extends State<StatsScreen> {
       AppLocalizations l) {
     if (stats.top5Vehicles.isEmpty) {
       return SizedBox(
-        height: 100,
+        height: Responsive.rh(context, 100),
         child: Center(
           child: Text(
             l.aucunAcces,
@@ -578,7 +579,7 @@ class _StatsScreenState extends State<StatsScreen> {
 
     if (maxY == 0) {
       return SizedBox(
-        height: 160,
+        height: Responsive.rh(context, 160),
         child: Center(
           child: Text(
             l.aucunAcces,
@@ -599,7 +600,7 @@ class _StatsScreenState extends State<StatsScreen> {
     return Column(
       children: [
         SizedBox(
-          height: 220, // hauteur augmentee pour laisser de la place a l'axe Y
+          height: Responsive.rh(context, 220), // hauteur proportionnelle pour l'axe Y
           child: BarChart(
             BarChartData(
               maxY: maxY * 1.2,
