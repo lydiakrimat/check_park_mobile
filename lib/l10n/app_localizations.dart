@@ -105,6 +105,12 @@ class AppLocalizations {
   String get scannerUnePlaqueTitle => _t('Scanner une plaque',  'مسح لوحة ترقيم');
   String get placerPlaque          => _t('Placez la plaque dans le cadre',
                                          'ضع اللوحة في الإطار');
+  String get cadrerVehicule        => _t('Cadrez l\'arriere du vehicule dans le cadre',
+                                         'ضع مؤخرة المركبة داخل الإطار');
+  String get aucunePlaqueMsg       => _t(
+    'Aucune plaque detectee. Reessayez ou utilisez la saisie manuelle.',
+    'لم تُكتشف أي لوحة. أعد المحاولة أو استخدم الإدخال اليدوي.',
+  );
   String get analyseEnCours        => _t('Analyse en cours... (2-5 secondes)',
                                          'جارٍ التحليل... (2-5 ثوان)');
   String get appuyerPourCapture    => _t('Appuyez sur le bouton pour capturer et analyser',

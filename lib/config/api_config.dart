@@ -15,10 +15,25 @@ class ApiConfig {
   ApiConfig._(); // Classe non instanciable, uniquement des constantes statiques.
 
   // ── Hôte cible ────────────────────────────────────────────────────────────
-  // Émulateur Android → 10.0.2.2  (alias de localhost de la machine hôte)
-  // Vrai téléphone    → remplacer par l'IP locale du PC (ex: '192.168.1.42')
-  static const String _host = '10.0.2.2';
-  //static const String _host = '192.168.1.2';
+  //
+  // EMULATEUR Android (AVD) :
+  //   10.0.2.2 est un alias special qui pointe vers localhost du Mac.
+  //   Utiliser cette adresse quand on lance l'app dans Android Studio / AVD.
+  //
+  // VRAI TELEPHONE physique (USB ou Wi-Fi) :
+  //   Le telephone doit etre sur le meme reseau Wi-Fi que le Mac.
+  //   Remplacer par l'IP locale du Mac : commande Mac → ipconfig getifaddr en0
+  //   IP actuelle du Mac sur le reseau local : 192.168.1.6
+  //
+  // Pour switcher : commenter une ligne, decommenter l'autre.
+
+  // Pour emulateur Android (AVD) :
+  //static const String _host = '10.0.2.2';
+
+  // Pour vrai telephone physique (meme reseau Wi-Fi que le Mac) :
+  static const String _host = '192.168.1.3';
+  //log.e('API Config: using host $_host');
+  //Log.e(''eee'',''ip ''+ip);
 
   // ── Backend Laravel (API REST) ─────────────────────────────────────────────
   static const int laravelPort = 8000;

@@ -30,8 +30,13 @@ class AppConstants {
   static const String datetimeDisplayFormat = 'dd/MM/yyyy HH:mm';
 
   // ── Messages d'erreur communs ──────────────────────────────────────────────
-  static const String erreurReseau   = 'Impossible de joindre le serveur. Vérifiez votre connexion.';
-  static const String erreurTimeout  = 'Le serveur met trop de temps à répondre.';
-  static const String erreurServeur  = 'Une erreur s\'est produite côté serveur.';
+  static const String erreurReseau   = 'Impossible de joindre le serveur. Verifiez votre connexion.';
+  static const String erreurTimeout  = 'Le serveur met trop de temps a repondre. Reessayez.';
+  static const String erreurServeur  = 'Une erreur s\'est produite cote serveur.';
   static const String erreurInconnu  = 'Une erreur inattendue s\'est produite.';
+  // Specifique au AI Service — different du backend Laravel.
+  static const String erreurServiceIA =
+      'Impossible de joindre le service IA. '
+      'Verifiez que FastAPI est demarre sur le Mac (port 8080) '
+      'et que le telephone est sur le meme reseau Wi-Fi.';
 }

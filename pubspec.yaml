@@ -45,10 +45,16 @@ dependencies:
   shared_preferences: ^2.3.4
 
   # Caméra — capture de photos pour le scanner de plaques
-  camera: ^0.11.0+2
+  #camera: ^0.11.0+2
+  camera: 0.10.5+9  #verion ancienne pour tester avec camera Legacy
 
   # Gestion d'état
   provider: ^6.1.2
+
+  # Parsing des types MIME — utilise pour forcer Content-Type: image/jpeg
+  # dans les requetes multipart vers le AI Service (corrige HTTP 415).
+  # Dependance directe necessaire meme si http l'utilise en interne.
+  http_parser: ^4.0.2
 
 dev_dependencies:
   flutter_test:

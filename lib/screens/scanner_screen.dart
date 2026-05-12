@@ -8,7 +8,14 @@ import '../models/scan_result.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_colors_scheme.dart';
 
-/// Écran de scan par caméra.
+/// Ecran de scan par camera.
+///
+/// Flux principal :
+///   1. La camera s'initialise via ScanProvider.initCamera()
+///   2. L'agent cadre l'arriere du vehicule dans le grand cadre guide
+///   3. Appui sur le bouton → captureAndScan() : photo + envoi AI Service
+///   4. Pendant l'envoi (2-5s) : overlay de chargement sur la preview
+///   5. Resultat affiché : vert (autorise), rouge (refuse), orange (non detectee)
 class ScannerScreen extends StatefulWidget {
   const ScannerScreen({super.key});
 
@@ -21,6 +28,12 @@ class _ScannerScreenState extends State<ScannerScreen>
   late AnimationController _lineCtrl;
   late Animation<double> _lineAnim;
 
+  // Reference au provider conservee pour un usage sur dans dispose().
+  // dispose() est appele apres la deconnexion du widget de l'arbre de widgets ;
+  // appeler context.read() a ce stade peut lever une exception selon la version
+  // Flutter. Ce cache evite le probleme "Looking up a deactivated widget's ancestor".
+  ScanProvider? _scanProv;
+
   @override
   void initState() {
     super.initState();
@@ -28,18 +41,21 @@ class _ScannerScreenState extends State<ScannerScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1800),
     )..repeat(reverse: true);
-    _lineAnim =
-        CurvedAnimation(parent: _lineCtrl, curve: Curves.easeInOut);
+    _lineAnim = CurvedAnimation(parent: _lineCtrl, curve: Curves.easeInOut);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ScanProvider>().initCamera();
+      if (!mounted) return;
+      // Cache la reference avant le premier build asynchrone.
+      _scanProv = context.read<ScanProvider>();
+      _scanProv!.initCamera();
     });
   }
 
   @override
   void dispose() {
     _lineCtrl.dispose();
-    context.read<ScanProvider>().disposeCamera();
+    // Utiliser la reference cachee — pas d'acces a context apres deactivation.
+    _scanProv?.disposeCamera();
     super.dispose();
   }
 
@@ -53,6 +69,8 @@ class _ScannerScreenState extends State<ScannerScreen>
       body: Stack(
         children: [
           _buildCameraView(scanProv),
+
+          // Bouton retour (coin superieur gauche, par-dessus la preview).
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -76,6 +94,8 @@ class _ScannerScreenState extends State<ScannerScreen>
               ),
             ),
           ),
+
+          // Panneau bas : bouton de capture OU resultat.
           Positioned(
             left: 0,
             right: 0,
@@ -89,10 +109,18 @@ class _ScannerScreenState extends State<ScannerScreen>
     );
   }
 
+  // ── Preview camera + cadre guide + overlay chargement ──────────────────────
+
   Widget _buildCameraView(ScanProvider scanProv) {
-    final screenH     = MediaQuery.of(context).size.height;
+    final size        = MediaQuery.of(context).size;
+    final previewH    = size.height * 0.55;
+    // Cadre guide : grand pour contenir l'arriere du vehicule entier.
+    // Le modele YOLOX est entraine sur des photos de voitures entieres.
+    final frameW      = size.width * 0.82;
+    final frameH      = previewH * 0.55;
     final cameraCtrl  = scanProv.camera.controller;
     final cameraReady = scanProv.camera.isInitialized && cameraCtrl != null;
+    final isSending   = scanProv.isSending;
     final c           = context.colors;
     final l           = context.l10n;
 
@@ -100,10 +128,11 @@ class _ScannerScreenState extends State<ScannerScreen>
       children: [
         SizedBox(
           width: double.infinity,
-          height: screenH * 0.55,
+          height: previewH,
           child: Stack(
             alignment: Alignment.center,
             children: [
+              // Camera preview (ou grille si non initialisee).
               if (cameraReady)
                 ClipRect(
                   child: OverflowBox(
@@ -111,9 +140,8 @@ class _ScannerScreenState extends State<ScannerScreen>
                     child: FittedBox(
                       fit: BoxFit.cover,
                       child: SizedBox(
-                        width: screenH * 0.55 /
-                            cameraCtrl.value.aspectRatio,
-                        height: screenH * 0.55,
+                        width: previewH / cameraCtrl.value.aspectRatio,
+                        height: previewH,
                         child: CameraPreview(cameraCtrl),
                       ),
                     ),
@@ -123,28 +151,25 @@ class _ScannerScreenState extends State<ScannerScreen>
                 Container(
                   color: const Color(0xFF0A0E1A),
                   child: CustomPaint(
-                    size: Size(double.infinity, screenH * 0.55),
+                    size: Size(double.infinity, previewH),
                     painter: _GridPainter(),
                   ),
                 ),
 
-              Container(
-                width: 280,
-                height: 130,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                      color: AppColors.greenLight, width: 2),
-                  color: AppColors.green.withValues(alpha: 0.08),
-                ),
+              // Cadre guide vehicule — coins uniquement, sans fond opaque.
+              // L'agent doit cadrer l'arriere du vehicule dans ce rectangle.
+              SizedBox(
+                width: frameW,
+                height: frameH,
                 child: Stack(
                   children: [
                     ..._buildCorners(),
-                    if (!scanProv.hasDone)
+                    // Ligne de scan animee traversant le cadre verticalement.
+                    if (!scanProv.hasDone && !isSending)
                       AnimatedBuilder(
                         animation: _lineAnim,
                         builder: (_, __) => Positioned(
-                          top: 10 + (_lineAnim.value * 110),
+                          top: 10 + (_lineAnim.value * (frameH - 20)),
                           left: 0,
                           right: 0,
                           child: Container(
@@ -163,7 +188,40 @@ class _ScannerScreenState extends State<ScannerScreen>
                 ),
               ),
 
-              if (!cameraReady && !scanProv.hasError)
+              // Overlay de chargement — visible pendant l'envoi de la photo au AI Service.
+              // Le traitement YOLOX + OCR + fuzzy matching prend 2-5 secondes sur CPU.
+              // Cet overlay empeche l'agent d'appuyer a nouveau pendant ce delai.
+              if (isSending)
+                Container(
+                  width: double.infinity,
+                  height: previewH,
+                  color: Colors.black.withValues(alpha: 0.55),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const SizedBox(
+                        width: 36,
+                        height: 36,
+                        child: CircularProgressIndicator(
+                          color: AppColors.greenLight,
+                          strokeWidth: 3,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        l.analyseEnCours,
+                        style: GoogleFonts.plusJakartaSans(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              // Indicateur de demarrage camera (avant initialisation).
+              if (!cameraReady && !scanProv.hasError && !isSending)
                 const Positioned(
                   bottom: 50,
                   child: CircularProgressIndicator(
@@ -171,19 +229,30 @@ class _ScannerScreenState extends State<ScannerScreen>
                   ),
                 ),
 
-              if (cameraReady)
+              // Texte guide : encourage l'agent a cadrer l'arriere du vehicule.
+              // Rappel important car YOLOX performe mieux sur le vehicule entier.
+              if (cameraReady && !isSending)
                 Positioned(
-                  bottom: 60,
-                  child: Text(
-                    l.placerPlaque,
-                    style: GoogleFonts.plusJakartaSans(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
+                  bottom: 16,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.50),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      l.cadrerVehicule,
+                      style: GoogleFonts.plusJakartaSans(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ),
 
+              // Message d'erreur camera (ex: permission refusee).
               if (scanProv.hasError && !scanProv.hasDone)
                 Positioned(
                   bottom: 55,
@@ -213,10 +282,12 @@ class _ScannerScreenState extends State<ScannerScreen>
     );
   }
 
+  // ── Coins du cadre guide ────────────────────────────────────────────────────
+
   List<Widget> _buildCorners() {
     const c = AppColors.greenLight;
     const t = 3.0;
-    const s = 20.0;
+    const s = 24.0;
     return [
       Positioned(
           top: 0, left: 0,
@@ -261,6 +332,8 @@ class _ScannerScreenState extends State<ScannerScreen>
     );
   }
 
+  // ── Panneau bas : bouton de capture ────────────────────────────────────────
+
   Widget _buildScanButton(ScanProvider scanProv) {
     final isSending = scanProv.isSending;
     final hasError  = scanProv.hasError;
@@ -271,8 +344,7 @@ class _ScannerScreenState extends State<ScannerScreen>
       padding: const EdgeInsets.fromLTRB(24, 28, 24, 40),
       decoration: BoxDecoration(
         color: c.background,
-        borderRadius:
-            const BorderRadius.vertical(top: Radius.circular(28)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.15),
@@ -325,10 +397,9 @@ class _ScannerScreenState extends State<ScannerScreen>
                 borderRadius: BorderRadius.circular(12),
               ),
               child: ElevatedButton.icon(
-                onPressed:
-                    (isSending || !scanProv.camera.isInitialized)
-                        ? null
-                        : () => scanProv.captureAndScan(),
+                onPressed: (isSending || !scanProv.camera.isInitialized)
+                    ? null
+                    : () => scanProv.captureAndScan(),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.transparent,
                   shadowColor: Colors.transparent,
@@ -345,9 +416,7 @@ class _ScannerScreenState extends State<ScannerScreen>
                     : const Icon(Icons.camera_alt_rounded,
                         color: Colors.white, size: 20),
                 label: Text(
-                  isSending
-                      ? l.analyseEnCoursBtn
-                      : l.capturerEtScanner,
+                  isSending ? l.analyseEnCoursBtn : l.capturerEtScanner,
                   style: GoogleFonts.plusJakartaSans(
                     color: Colors.white,
                     fontWeight: FontWeight.w700,
@@ -362,11 +431,24 @@ class _ScannerScreenState extends State<ScannerScreen>
     );
   }
 
+  // ── Panneau bas : resultat du scan ─────────────────────────────────────────
+
+  /// Affiche le resultat selon 3 etats :
+  ///   - detected == false → panneau orange "aucune plaque detectee"
+  ///   - detected == true && authorized == true → panneau vert "AUTORISE"
+  ///   - detected == true && authorized == false → panneau rouge "REFUSE"
   Widget _buildResult(ScanResult r) {
-    final isOk = r.authorized;
+    // Cas 1 : YOLOX n'a pas detecte de plaque dans l'image.
+    // Peut arriver si le vehicule est mal cadre, la photo floue, ou trop loin.
+    if (!r.detected) {
+      return _buildNotDetected();
+    }
+
+    // Cas 2 et 3 : plaque detectee — autorisee ou refusee.
+    final isOk  = r.authorized;
     final plate = r.displayPlate;
-    final c = context.colors;
-    final l = context.l10n;
+    final c     = context.colors;
+    final l     = context.l10n;
 
     return Container(
       constraints: BoxConstraints(
@@ -374,8 +456,7 @@ class _ScannerScreenState extends State<ScannerScreen>
       ),
       decoration: BoxDecoration(
         color: c.white,
-        borderRadius:
-            const BorderRadius.vertical(top: Radius.circular(28)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.15),
@@ -400,6 +481,7 @@ class _ScannerScreenState extends State<ScannerScreen>
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
               children: [
+                // Plaque affichee avec style immatriculation (monospace, fond sombre).
                 Container(
                   padding: const EdgeInsets.symmetric(
                       horizontal: 14, vertical: 10),
@@ -459,17 +541,15 @@ class _ScannerScreenState extends State<ScannerScreen>
                     _detailRow(l.similarite,
                         '${(r.similarityScore! * 100).toStringAsFixed(0)}%', c),
                   if (r.vehicle?.brand != null)
-                    _detailRow(l.marque,         r.vehicle!.brand!, c),
+                    _detailRow(l.marque,        r.vehicle!.brand!, c),
                   if (r.vehicle?.color != null)
-                    _detailRow(l.couleur,        r.vehicle!.color!, c),
+                    _detailRow(l.couleur,       r.vehicle!.color!, c),
                   if (r.owner != null)
-                    _detailRow(l.proprietaire,   r.owner!.fullName, c),
+                    _detailRow(l.proprietaire,  r.owner!.fullName, c),
                   if (r.owner?.service != null)
-                    _detailRow(l.service,        r.owner!.service!, c),
+                    _detailRow(l.service,       r.owner!.service!, c),
                   if (!isOk && r.reason != null)
-                    _detailRow(l.raison,         r.reason!, c),
-                  if (!r.detected)
-                    _detailRow(l.statutPlaque,   l.plaqueNonDetectee, c),
+                    _detailRow(l.raison,        r.reason!, c),
                 ],
               ),
             ),
@@ -479,8 +559,7 @@ class _ScannerScreenState extends State<ScannerScreen>
             child: OutlinedButton.icon(
               onPressed: () => context.read<ScanProvider>().reset(),
               style: OutlinedButton.styleFrom(
-                side: const BorderSide(
-                    color: AppColors.primary, width: 1.5),
+                side: const BorderSide(color: AppColors.primary, width: 1.5),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
                 minimumSize: const Size(double.infinity, 48),
@@ -494,6 +573,92 @@ class _ScannerScreenState extends State<ScannerScreen>
                   fontWeight: FontWeight.w700,
                   fontSize: 14,
                 ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Panneau orange : YOLOX n'a pas detecte de plaque dans l'image.
+  /// Invite l'agent a reessayer en cadrant mieux l'arriere du vehicule.
+  Widget _buildNotDetected() {
+    final c = context.colors;
+    final l = context.l10n;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: c.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.15),
+            blurRadius: 20,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 36),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 40,
+            height: 4,
+            margin: const EdgeInsets.only(bottom: 20),
+            decoration: BoxDecoration(
+              color: c.border,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          // Icone et badge orange.
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: AppColors.warning.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.image_search_rounded,
+                color: AppColors.warning, size: 28),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            l.plaqueNonDetectee,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              color: AppColors.warning,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            l.aucunePlaqueMsg,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 12,
+              color: c.muted,
+              height: 1.5,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 20),
+          OutlinedButton.icon(
+            onPressed: () => context.read<ScanProvider>().reset(),
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(color: AppColors.warning, width: 1.5),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+              minimumSize: const Size(double.infinity, 48),
+            ),
+            icon: Icon(Icons.refresh_rounded,
+                color: AppColors.warning, size: 18),
+            label: Text(
+              l.scannerUnAutre,
+              style: GoogleFonts.plusJakartaSans(
+                color: AppColors.warning,
+                fontWeight: FontWeight.w700,
+                fontSize: 14,
               ),
             ),
           ),
@@ -535,6 +700,7 @@ class _ScannerScreenState extends State<ScannerScreen>
   }
 }
 
+// Fond grille sombre affiche pendant l'initialisation de la camera.
 class _GridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
