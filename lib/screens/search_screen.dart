@@ -340,8 +340,13 @@ class _SearchScreenState extends State<SearchScreen> {
 
           if (_result != null && _result!.authorized)
             _validateButton(c, l),
+
+          SizedBox(height: MediaQuery.of(context).padding.bottom),
+
         ],
+        
       ),
+
     );
   }
 

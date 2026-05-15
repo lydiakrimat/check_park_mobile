@@ -116,6 +116,28 @@ class ApiService {
     }
   }
 
+  /// Effectue une requete PATCH avec un body JSON.
+  Future<dynamic> patch(String url, Map<String, dynamic> body) async {
+    try {
+      final response = await http
+          .patch(
+            Uri.parse(url),
+            headers: _headers(),
+            body: jsonEncode(body),
+          )
+          .timeout(ApiConfig.defaultTimeout);
+      return _handleResponse(response);
+    } on SocketException {
+      throw const ApiException(AppConstants.erreurReseau);
+    } on http.ClientException {
+      throw const ApiException(AppConstants.erreurReseau);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      throw const ApiException(AppConstants.erreurInconnu);
+    }
+  }
+
   /// Effectue une requête DELETE.
   Future<dynamic> delete(String url) async {
     try {

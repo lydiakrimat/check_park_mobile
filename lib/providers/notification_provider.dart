@@ -3,12 +3,12 @@ import '../models/notification_model.dart';
 import '../services/notification_service.dart';
 import '../services/api_service.dart';
 
-/// Provider de l'état des notifications de sécurité.
+/// Provider de l'etat des notifications de securite.
 ///
-/// Charge la liste depuis Laravel et maintient le compteur de non-lues
-/// pour le badge rouge dans la BottomNavigationBar.
+/// Charge la liste depuis Laravel et maintient le compteur de non-vues
+/// pour le badge rouge dans l'AppBar.
 class NotificationProvider extends ChangeNotifier {
-  final NotificationService _service;
+  NotificationService _service;
 
   List<NotificationModel> _notifications = [];
   bool _loading = false;
@@ -16,16 +16,22 @@ class NotificationProvider extends ChangeNotifier {
 
   NotificationProvider(this._service);
 
-  // ── Getters ────────────────────────────────────────────────────────────────
+  /// Met a jour le service sans perdre l'etat des notifications.
+  /// Appele par le ChangeNotifierProxyProvider quand le token change.
+  void updateService(NotificationService service) {
+    _service = service;
+  }
+
+  // -- Getters --
 
   List<NotificationModel> get notifications => _notifications;
   bool get loading => _loading;
   String? get errorMessage => _errorMessage;
 
-  /// Nombre de notifications non lues — affiché dans le badge de la cloche.
-  int get unreadCount => _notifications.where((n) => !n.lu).length;
+  /// Nombre de notifications non vues par l'agent.
+  int get unreadCount => _notifications.where((n) => !n.vuAgent).length;
 
-  // ── Chargement ─────────────────────────────────────────────────────────────
+  // -- Chargement --
 
   /// Charge toutes les notifications depuis le serveur.
   Future<void> fetch() async {
@@ -45,27 +51,27 @@ class NotificationProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── Actions ────────────────────────────────────────────────────────────────
+  // -- Actions --
 
-  /// Marque une notification comme lue (mise à jour locale + appel API).
+  /// Marque une notification comme vue par l'agent (mise a jour locale + appel API).
   Future<void> markAsRead(int id) async {
     try {
       await _service.markAsRead(id);
-      // Mise à jour optimiste de la liste locale pour une UI réactive.
+      // Mise a jour optimiste de la liste locale pour une UI reactive.
       _notifications = _notifications.map((n) {
-        return n.id == id ? n.copyWithRead() : n;
+        return n.id == id ? n.copyWithVuAgent() : n;
       }).toList();
       notifyListeners();
     } on ApiException catch (_) {
-      // Silencieux — la prochaine synchronisation corrigera l'état.
+      // Silencieux — la prochaine synchronisation corrigera l'etat.
     }
   }
 
-  /// Marque toutes les notifications comme lues.
+  /// Marque toutes les notifications comme vues par l'agent.
   Future<void> markAllAsRead() async {
     try {
       await _service.markAllAsRead();
-      _notifications = _notifications.map((n) => n.copyWithRead()).toList();
+      _notifications = _notifications.map((n) => n.copyWithVuAgent()).toList();
       notifyListeners();
     } on ApiException catch (_) {}
   }

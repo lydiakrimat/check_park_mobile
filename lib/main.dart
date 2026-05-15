@@ -76,7 +76,7 @@ void main() async {
               getToken: ctx.read<AuthProvider>().getToken,
             )),
           ),
-          update: (_, auth, __) => NotificationProvider(
+          update: (_, auth, prev) => prev!..updateService(
             NotificationService(ApiService(getToken: auth.getToken)),
           ),
         ),
