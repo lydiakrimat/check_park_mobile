@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/app_localizations.dart';
 import '../models/notification_model.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_colors_scheme.dart';
@@ -22,6 +23,7 @@ class NotificationCard extends StatelessWidget {
     final isExpiration = entry.type == 'duree_expiree';
     final accentColor = isExpiration ? AppColors.warning : AppColors.danger;
     final c = context.colors;
+    final l = context.l10n;
     final isRead = entry.vuAgent;
 
     return Card(
@@ -60,23 +62,26 @@ class NotificationCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 10),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: accentColor.withAlpha(25),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    isExpiration ? 'Duree expiree' : 'Acces refuse',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: accentColor,
+                Flexible(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: accentColor.withAlpha(25),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      isExpiration ? l.dureeExpiree : l.refusAcces,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: accentColor,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ),
-                const Spacer(),
+                const SizedBox(width: 8),
                 if (!isRead)
                   Container(
                     width: 8,
@@ -90,9 +95,9 @@ class NotificationCard extends StatelessWidget {
             ),
             const SizedBox(height: 10),
 
-            // Row 2: message
+            // Row 2: message (traduit si la langue est l'arabe)
             Text(
-              entry.message,
+              l.traduireMessageNotif(entry.message),
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: isRead ? FontWeight.w500 : FontWeight.w700,
@@ -112,7 +117,7 @@ class NotificationCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                    'Plaque : ${entry.plateNumber}',
+                    l.plaqueLabel(entry.plateNumber!),
                     style: const TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
@@ -123,52 +128,60 @@ class NotificationCard extends StatelessWidget {
               ),
             const SizedBox(height: 10),
 
-            // Row 4: date + boutons actions
-            Row(
+            // Row 4: date + boutons actions (Wrap pour petit ecran)
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 Text(
                   DateFormatter.relative(entry.createdAt),
                   style: TextStyle(fontSize: 10, color: c.muted),
                 ),
-                const Spacer(),
-                if (!isRead)
-                  GestureDetector(
-                    onTap: onMarkRead,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: c.okBg,
-                        borderRadius: BorderRadius.circular(8),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (!isRead)
+                      GestureDetector(
+                        onTap: onMarkRead,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: c.okBg,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.check_rounded,
+                                  size: 12, color: AppColors.okText),
+                              const SizedBox(width: 4),
+                              Text(l.marquerCommeLu,
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.okText)),
+                            ],
+                          ),
+                        ),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.check_rounded,
-                              size: 12, color: AppColors.okText),
-                          const SizedBox(width: 4),
-                          Text('Lu',
-                              style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.okText)),
-                        ],
+                    if (!isRead) const SizedBox(width: 6),
+                    GestureDetector(
+                      onTap: onDelete,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: c.noBg,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(Icons.close_rounded,
+                            size: 14, color: AppColors.noText),
                       ),
                     ),
-                  ),
-                const SizedBox(width: 6),
-                GestureDetector(
-                  onTap: onDelete,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: c.noBg,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(Icons.close_rounded,
-                        size: 14, color: AppColors.noText),
-                  ),
+                  ],
                 ),
               ],
             ),

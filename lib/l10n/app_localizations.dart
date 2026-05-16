@@ -179,9 +179,71 @@ class AppLocalizations {
   String get notifications         => _t('Notifications',             'الإشعارات');
   String nonLues(int n)            => _t('$n non lue(s)',             '$n غير مقروءة');
   String get toutLire              => _t('Tout lire',                 'قراءة الكل');
+  String get marquerCommeLu        => _t('Marquer comme lu',          'تحديد كمقروء');
+  String get toutMarquerCommeLu    => _t('Tout marquer comme lu',     'تحديد الكل كمقروء');
   String get aucuneNotification    => _t('Aucune notification',       'لا إشعارات');
   String get notifTraitees         => _t('Toutes les notifications ont été traitées',
                                          'تمت معالجة جميع الإشعارات');
+  String get supprimerAlerte       => _t('Supprimer cette alerte',    'حذف هذا التنبيه');
+  String get confirmerSupprAlerte  => _t('Voulez-vous supprimer cette alerte ?',
+                                         'هل تريد حذف هذا التنبيه؟');
+  String plaqueLabel(String plate) => _t('Plaque : $plate',           'اللوحة : $plate');
+
+  // ── Traduction des messages de notification venant du serveur ───────────────
+  String get titreAccesRefuse      => _t('Tentative d\'accès refusée',        'محاولة دخول مرفوضة');
+  String get titreAccesExpire      => _t('Accès temporaire expiré',           'انتهاء صلاحية الدخول المؤقت');
+  String get titreNotifLue         => _t('Notification lue — accès expiré',   'إشعار مقروء — دخول منتهي');
+  String get titreDureeExpiree     => _t('Durée expirée',                     'انتهت المدة');
+  String get titreAccesRefuseAlt   => _t('Accès refusé',                      'دخول مرفوض');
+
+  /// Traduit un message de notification provenant du serveur.
+  /// Détecte les patterns connus et les traduit ; sinon retourne le message tel quel.
+  String traduireMessageNotif(String message) {
+    if (!_ar) return message;
+
+    // Pattern : "Le véhicule avec la plaque XXX a été refusé à l'entrée du site."
+    final refusMatch = RegExp(r"Le véhicule avec la plaque (.+) a été refusé").firstMatch(message);
+    if (refusMatch != null) {
+      return 'تم رفض دخول المركبة ذات اللوحة ${refusMatch.group(1)} إلى الموقع.';
+    }
+
+    // Pattern : "L'accès temporaire de XXX (plaque YYY) est expiré depuis ZZZ."
+    final expireMatch = RegExp(r"L'accès temporaire de (.+?) \(plaque (.+?)\) est expiré depuis (.+)\.").firstMatch(message);
+    if (expireMatch != null) {
+      return 'انتهت صلاحية الدخول المؤقت لـ ${expireMatch.group(1)} (اللوحة ${expireMatch.group(2)}) منذ ${expireMatch.group(3)}.';
+    }
+
+    // Pattern : "Accès visiteur XXX expiré..."
+    final visiteurMatch = RegExp(r"Accès visiteur (.+?) expiré").firstMatch(message);
+    if (visiteurMatch != null) {
+      return 'انتهى دخول الزائر ${visiteurMatch.group(1)}.';
+    }
+
+    // Message non reconnu : retourner tel quel
+    return message;
+  }
+
+  /// Traduit le titre d'une notification provenant du serveur.
+  String traduireTitreNotif(String titre) {
+    if (!_ar) return titre;
+
+    final map = <String, String>{
+      'Tentative d\'accès refusée': titreAccesRefuse,
+      'Accès temporaire expiré': titreAccesExpire,
+      'Notification lue — accès expiré': titreNotifLue,
+      'Acces refuse': titreAccesRefuseAlt,
+      'Duree expiree': titreDureeExpiree,
+      'Acces expire': titreAccesExpire,
+    };
+
+    return map[titre] ?? titre;
+  }
+
+  // ── Statuts d'acces supplementaires ──────────────────────────────────────────
+  String get enAttente             => _t('En attente',                'في الانتظار');
+  String get entre                 => _t('Entré',                     'دخل');
+  String get refusAcces            => _t('Refus d\'accès',            'رفض الدخول');
+  String get dureeExpiree          => _t('Durée expirée',             'انتهت المدة');
 
   // ── Carte d'accès ────────────────────────────────────────────────────────────
   String get employeAT             => _t('Employé AT',                'موظف اتصالات الجزائر');

@@ -8,6 +8,7 @@ import '../providers/locale_provider.dart';
 import '../providers/theme_provider.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_colors_scheme.dart';
+import '../widgets/info_row_widget.dart';
 
 /// Écran des paramètres — profil, thème, langue, déconnexion.
 class SettingsScreen extends StatelessWidget {
@@ -129,10 +130,13 @@ class SettingsScreen extends StatelessWidget {
             c: c,
             child: Column(
               children: [
-                _infoRow(Icons.info_outline_rounded,  l.application,  'ALPR Mobile',         c),
-                _infoRow(Icons.tag_rounded,            l.version,      '1.0.0',               c),
-                _infoRow(Icons.business_rounded,       l.organisation, 'Algerie Telecom',     c),
-                _infoRow(Icons.code_rounded,           l.stack,        'Flutter + Laravel 12',c),
+                InfoRow(icon: Icons.info_outline_rounded, label: l.application, valeur: 'ALPR Mobile'),
+                const SizedBox(height: 8),
+                InfoRow(icon: Icons.tag_rounded, label: l.version, valeur: '1.0.0'),
+                const SizedBox(height: 8),
+                InfoRow(icon: Icons.business_rounded, label: l.organisation, valeur: 'Algerie Telecom'),
+                const SizedBox(height: 8),
+                InfoRow(icon: Icons.code_rounded, label: l.stack, valeur: 'Flutter + Laravel 12'),
               ],
             ),
           ),
@@ -271,11 +275,11 @@ class SettingsScreen extends StatelessWidget {
           Divider(height: 1, color: c.border),
           const SizedBox(height: 14),
           if (email.isNotEmpty) ...[
-            _infoRow(Icons.email_outlined, l.email, email, c),
+            InfoRow(icon: Icons.email_outlined, label: l.email, valeur: email),
             const SizedBox(height: 8),
           ],
           if (telephone.isNotEmpty) ...[
-            _infoRow(Icons.phone_outlined, l.telephone, telephone, c),
+            InfoRow(icon: Icons.phone_outlined, label: l.telephone, valeur: telephone),
             const SizedBox(height: 8),
           ],
           const SizedBox(height: 4),
@@ -387,28 +391,6 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  Widget _infoRow(IconData icon, String label, String value, AppColorsScheme c) {
-    return Row(
-      children: [
-        Icon(icon, size: 18, color: AppColors.primary),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            label,
-            style: GoogleFonts.plusJakartaSans(fontSize: 12, color: c.muted),
-          ),
-        ),
-        Text(
-          value,
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            color: c.text,
-          ),
-        ),
-      ],
-    );
-  }
 
   Widget _card({required AppColorsScheme c, required Widget child}) {
     return Container(

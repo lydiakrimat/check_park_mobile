@@ -72,44 +72,52 @@ class AccessCard extends StatelessWidget {
           const Divider(height: 1),
           const SizedBox(height: 10),
 
-          // Ligne 2 : plaque + dates d'entrée/sortie + statut
+          // Ligne 2 : plaque + dates d'entree/sortie + statut
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               PlateBadge(plate: entry.displayPlate, fontSize: 11),
               const SizedBox(width: 8),
-              // Colonne des dates : entrée obligatoire, sortie nullable
+              // Colonne des dates : entree obligatoire, sortie nullable
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Date et heure d'entrée sur le site
+                    // Date et heure d'entree sur le site
                     Row(
                       children: [
                         Icon(Icons.login_rounded, size: 12, color: c.muted),
                         const SizedBox(width: 3),
-                        Text(
-                          '${l.entreePrefix}${DateFormatter.datetime(entry.dateHeureEntree)}',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 11,
-                            color: c.muted,
+                        Expanded(
+                          child: Text(
+                            '${l.entreePrefix}${DateFormatter.datetime(entry.dateHeureEntree)}',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 11,
+                              color: c.muted,
+                            ),
+                            overflow: TextOverflow.visible,
+                            softWrap: true,
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 2),
-                    // Date et heure de sortie — '-' si le véhicule est encore sur le site
+                    // Date et heure de sortie — '-' si le vehicule est encore sur le site
                     Row(
                       children: [
                         Icon(Icons.logout_rounded, size: 12, color: c.muted),
                         const SizedBox(width: 3),
-                        Text(
-                          entry.dateHeureSortie != null
-                              ? '${l.sortiePrefix}${DateFormatter.datetime(entry.dateHeureSortie)}'
-                              : '${l.sortiePrefix}-',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 11,
-                            color: c.muted,
+                        Expanded(
+                          child: Text(
+                            entry.dateHeureSortie != null
+                                ? '${l.sortiePrefix}${DateFormatter.datetime(entry.dateHeureSortie)}'
+                                : '${l.sortiePrefix}-',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 11,
+                              color: c.muted,
+                            ),
+                            overflow: TextOverflow.visible,
+                            softWrap: true,
                           ),
                         ),
                       ],

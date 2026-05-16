@@ -9,7 +9,7 @@ import '../services/statistics_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_colors_scheme.dart';
 import '../utils/responsive.dart';
-import '../widgets/stat_card.dart';
+import '../widgets/stat_card_widget.dart';
 
 /// Ecran des statistiques d'acces — Algerie Telecom.
 ///
@@ -230,40 +230,48 @@ class _StatsScreenState extends State<StatsScreen> {
     final pctOk = stats.todayAutorise / todayTotal * 100;
     final pctKo = stats.todayRefuse   / todayTotal * 100;
 
+    // Taille responsive du camembert : ne depasse jamais 50% de la largeur ecran
+    final pieMaxWidth = MediaQuery.of(context).size.width * 0.5;
+
     return Column(
       children: [
-        SizedBox(
-          height: Responsive.rh(context, 200),
-          child: PieChart(
-            PieChartData(
-              sectionsSpace: 3,
-              centerSpaceRadius: 48,
-              sections: [
-                PieChartSectionData(
-                  value: stats.todayAutorise.toDouble(),
-                  title: '${pctOk.toInt()}%',
-                  color: AppColors.green,
-                  radius: 70,
-                  titleStyle: GoogleFonts.plusJakartaSans(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                  ),
+        Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: pieMaxWidth),
+            child: AspectRatio(
+              aspectRatio: 1.0,
+              child: PieChart(
+                PieChartData(
+                  sectionsSpace: 3,
+                  centerSpaceRadius: pieMaxWidth * 0.22,
+                  sections: [
+                    PieChartSectionData(
+                      value: stats.todayAutorise.toDouble(),
+                      title: '${pctOk.toInt()}%',
+                      color: AppColors.green,
+                      radius: pieMaxWidth * 0.32,
+                      titleStyle: GoogleFonts.plusJakartaSans(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    PieChartSectionData(
+                      value: stats.todayRefuse > 0
+                          ? stats.todayRefuse.toDouble()
+                          : 0.01,
+                      title: stats.todayRefuse > 0 ? '${pctKo.toInt()}%' : '',
+                      color: AppColors.danger,
+                      radius: pieMaxWidth * 0.32,
+                      titleStyle: GoogleFonts.plusJakartaSans(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
                 ),
-                PieChartSectionData(
-                  value: stats.todayRefuse > 0
-                      ? stats.todayRefuse.toDouble()
-                      : 0.01,
-                  title: stats.todayRefuse > 0 ? '${pctKo.toInt()}%' : '',
-                  color: AppColors.danger,
-                  radius: 70,
-                  titleStyle: GoogleFonts.plusJakartaSans(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ),

@@ -31,6 +31,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   /// Affiche un dialog de confirmation avant suppression.
   Future<void> _confirmDelete(BuildContext context, int id) async {
     final c = context.colors;
+    final l = context.l10n;
     final confirmed = await showDialog<bool>(
       context: context,
       barrierDismissible: true,
@@ -65,7 +66,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     const SizedBox(height: 16),
                     // Titre
                     Text(
-                      'Supprimer cette alerte',
+                      l.supprimerAlerte,
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 17,
                         fontWeight: FontWeight.w800,
@@ -75,7 +76,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     const SizedBox(height: 8),
                     // Message
                     Text(
-                      'Voulez-vous supprimer cette alerte ?',
+                      l.confirmerSupprAlerte,
                       textAlign: TextAlign.center,
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 13,
@@ -99,7 +100,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                               ),
                               child: Center(
                                 child: Text(
-                                  'Annuler',
+                                  l.annuler,
                                   style: GoogleFonts.plusJakartaSans(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
@@ -142,7 +143,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                         ),
                                       )
                                     : Text(
-                                        'Confirmer',
+                                        l.confirmer,
                                         style: GoogleFonts.plusJakartaSans(
                                           fontSize: 13,
                                           fontWeight: FontWeight.w700,
@@ -163,7 +164,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         );
       },
     );
-    // Le dialog gere la suppression lui-meme, pas besoin de traiter confirmed ici
+    // Le dialog gère la suppression lui-même, pas besoin de traiter confirmed ici
     if (confirmed == true) return;
   }
 
@@ -195,7 +196,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      l.toutLire,
+                      l.toutMarquerCommeLu,
                       style: GoogleFonts.plusJakartaSans(
                         color: Colors.white,
                         fontSize: 11,

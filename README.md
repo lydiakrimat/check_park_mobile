@@ -12,11 +12,12 @@ Developpee avec Flutter, elle communique avec deux backends : le **backend Larav
 - Ecran Scanner : camera, cadre dynamique, overlay de chargement, resultat OK/refuse/non detecte
 - Recherche manuelle de plaque (POST /verify)
 - Historique des acces avec filtres
-- Notifications avec compteur non-lues
+- Notifications securite avec compteur non-lues (`vu_agent`), marquer lu, supprimer
 - Statistiques (graphiques fl_chart)
 - Parametres (profil agent, theme, langue)
 - Layout responsive sur toutes les tailles d'ecran (360px a 430px+)
-- Textes UI en francais avec accents corrects
+- Textes UI bilingues francais / arabe (traduction dynamique des messages serveur incluse)
+- Widgets reutilisables extraits dans lib/widgets/ (InfoRow, StatCard, etc.)
 
 ### Teste et confirme fonctionnel
 - Emulateur Android AVD avec `_host = '10.0.2.2'`
@@ -107,7 +108,7 @@ lib/
 │   ├── scan_service.dart       POST /scan (photo multipart) et POST /verify (texte JSON)
 │   ├── camera_service.dart     Initialisation camera, capture photo
 │   ├── access_service.dart     GET /api/acces
-│   ├── notification_service.dart GET/PUT/DELETE /api/notifications
+│   ├── notification_service.dart GET /notifications/agent, PATCH vu-agent, DELETE
 │   ├── search_service.dart     Recherche via POST /verify
 │   ├── statistics_service.dart Calcul KPIs localement
 │   └── daily_counter_service.dart Compteurs journaliers (SharedPreferences)
@@ -130,10 +131,11 @@ lib/
 │   ├── stats_screen.dart       Graphiques fl_chart (pie, bar, line)
 │   └── settings_screen.dart    Profil agent, theme, langue
 ├── widgets/
-│   ├── access_card.dart        Carte d'un enregistrement d'acces
-│   ├── notification_card.dart  Carte d'une notification
+│   ├── access_card.dart        Carte d'un enregistrement d'acces (gestion debordement texte)
+│   ├── notification_card.dart  Carte d'une notification (bilingue fr/ar)
 │   ├── error_banner.dart       Banniere d'erreur reutilisable (rouge, bouton retry optionnel)
-│   ├── stat_card.dart          Carte KPI (chiffre + libelle)
+│   ├── stat_card_widget.dart   Carte KPI (hauteur fixe, taille uniforme entre cartes)
+│   ├── info_row_widget.dart    Ligne label/valeur reutilisable (gestion debordement)
 │   ├── status_badge.dart       Badge colore (Autorise / Refuse / Expire)
 │   ├── plate_badge.dart        Badge plaque d'immatriculation
 │   └── at_header.dart          En-tete Algerie Telecom (logo contraint a 32px)
@@ -143,6 +145,7 @@ lib/
 │   └── app_theme.dart          AppTheme.light et AppTheme.dark
 ├── l10n/
 │   └── app_localizations.dart  Toutes les chaines FR + AR + extension context.l10n
+│                               + traduction dynamique des messages serveur (traduireMessageNotif, traduireTitreNotif)
 ├── utils/
 │   ├── responsive.dart         Helper responsive : Responsive.rw(), Responsive.rh()
 │   ├── validators.dart         Validation email, mot de passe, plaque
@@ -213,6 +216,15 @@ c.okBg / noBg / expBg   // fonds badges statut adaptatifs
 - `AppLocalizations(bool _ar)` dans `lib/l10n/app_localizations.dart`
 - Acces via extension : `context.l10n` (retourne l'instance correspondant a la locale active)
 - `LocaleProvider` stocke la `Locale` active et notifie l'arbre
+- RTL automatique via Flutter quand `locale = Locale('ar')`
+
+### Traduction des messages serveur
+Les notifications sont stockees en francais dans la BDD Laravel.
+Cote mobile, `AppLocalizations` fournit deux methodes de traduction dynamique :
+- `traduireMessageNotif(String message)` : detecte les patterns connus (regex) et retourne la traduction arabe
+- `traduireTitreNotif(String titre)` : mappe les titres connus vers leur traduction arabe
+
+En francais ces methodes retournent le texte original sans modification.
 
 ### Regle CRITIQUE
 Dans `AppL10nX` (l'extension `context.l10n`) :
@@ -220,6 +232,11 @@ Dans `AppL10nX` (l'extension `context.l10n`) :
 // TOUJOURS listen: false — sinon crash depuis les event handlers
 Provider.of<LocaleProvider>(this, listen: false)
 ```
+
+### Regle — aucune chaine hardcodee
+Toute chaine affichee a l'utilisateur doit passer par `app_localizations.dart`.
+Chaque cle a obligatoirement une version FR et une version AR.
+Les accents francais doivent etre preserves (Autorise, Entree, etc.).
 
 ### Localisation Flutter (Material widgets)
 Dans `app.dart`, `MaterialApp` doit avoir :
@@ -273,6 +290,44 @@ ScanProvider.captureAndScan()
 | Plaque autorisee | `detected && authorized` | Panel vert |
 | Plaque refusee | `detected && !authorized` | Panel rouge |
 | Plaque non detectee | `!detected` | Panel orange (aucunePlaqueMsg) |
+
+---
+
+## Systeme de notifications (agent mobile)
+
+L'application mobile utilise le systeme `vu_agent` — independant du `vu_admin` du dashboard web.
+
+### Endpoints utilises
+
+| Methode | Route | Description |
+|---------|-------|-------------|
+| GET | `/api/notifications/agent` | Toutes les notifications |
+| PATCH | `/api/notifications/{id}/vu-agent` | Marquer une notification vue |
+| PATCH | `/api/notifications/tout-vu-agent` | Marquer toutes vues |
+| DELETE | `/api/notifications/{id}` | Supprimer une notification |
+
+### Architecture
+
+- **`NotificationService`** : client HTTP vers les endpoints agent
+- **`NotificationProvider`** (ChangeNotifier) : gere la liste locale, le compteur non-lues, et les mises a jour optimistes
+- **`NotificationCard`** (widget) : affiche une notification avec icone par type, badge, date, boutons actions
+- **`ChangeNotifierProxyProvider`** dans `main.dart` : preserve l'etat du provider quand le token change via `prev!..updateService(...)`
+
+### Types de notifications affiches
+
+| Type | Badge | Couleur |
+|------|-------|---------|
+| `refus_acces` | "Refus" | Rouge |
+| `duree_expiree` | "Expire" | Orange |
+
+### Fonctionnalites
+
+- Compteur de notifications non lues (`vu_agent == false`) dans le badge de l'onglet
+- Marquer comme lu (individuel via `marquerCommeLu` ou tout d'un coup via `toutMarquerCommeLu`)
+- Suppression avec dialog de confirmation (localise fr/ar)
+- Traduction dynamique des messages serveur en arabe (via `traduireMessageNotif`)
+- Badges type localises : `dureeExpiree` / `refusAcces`
+- Support dark mode et RTL
 
 ---
 
@@ -417,10 +472,10 @@ AuthService.login()
 | Laravel | POST | `/api/logout` | AuthService.logout() |
 | Laravel | GET | `/api/me` | AuthService.fetchCurrentUser() |
 | Laravel | GET | `/api/acces` | AccessService |
-| Laravel | GET | `/api/notifications` | NotificationService |
-| Laravel | PUT | `/api/notifications/{id}/lire` | NotificationService |
-| Laravel | PUT | `/api/notifications/lire-tout` | NotificationService |
-| Laravel | DELETE | `/api/notifications/{id}` | NotificationService |
+| Laravel | GET | `/api/notifications/agent` | NotificationService.fetchAll() |
+| Laravel | PATCH | `/api/notifications/{id}/vu-agent` | NotificationService.markAsRead() |
+| Laravel | PATCH | `/api/notifications/tout-vu-agent` | NotificationService.markAllAsRead() |
+| Laravel | DELETE | `/api/notifications/{id}` | NotificationService.delete() |
 | Laravel | PUT | `/api/utilisateurs/{id}` | AuthService.updateProfile() |
 | AI Service | POST | `/scan` | ScanService.scanPhoto() |
 | AI Service | POST | `/verify` | ScanService.verifyPlate() |

@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_colors_scheme.dart';
 
-/// Carte KPI compacte — icône + valeur + libellé.
+/// Widget de carte statistique reutilisable.
+///
+/// Utilise dans la page Statistiques pour afficher les KPIs.
+/// Toutes les cartes ont une hauteur fixe commune pour un alignement uniforme.
 class StatCard extends StatelessWidget {
   final String label;
   final String value;
@@ -20,7 +23,10 @@ class StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+
     return Container(
+      // Hauteur fixe commune a toutes les cartes KPI
+      height: 140,
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
       decoration: BoxDecoration(
         color: c.white,
@@ -46,15 +52,16 @@ class StatCard extends StatelessWidget {
             child: Icon(icon, color: color, size: 20),
           ),
           const SizedBox(height: 12),
-          Text(
-            value,
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 28,
-              fontWeight: FontWeight.w900,
-              color: color,
+          Expanded(
+            child: Text(
+              value,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 28,
+                fontWeight: FontWeight.w900,
+                color: color,
+              ),
             ),
           ),
-          const SizedBox(height: 2),
           Text(
             label,
             style: GoogleFonts.plusJakartaSans(
@@ -62,6 +69,7 @@ class StatCard extends StatelessWidget {
               fontWeight: FontWeight.w600,
               color: c.muted,
             ),
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
