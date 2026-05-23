@@ -8,6 +8,7 @@ import '../models/scan_result.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_colors_scheme.dart';
 import '../utils/responsive.dart';
+import '../widgets/temporaire_result_card.dart';
 
 /// Ecran de scan par camera.
 ///
@@ -445,7 +446,12 @@ class _ScannerScreenState extends State<ScannerScreen>
       return _buildNotDetected();
     }
 
-    // Cas 2 et 3 : plaque detectee — autorisee ou refusee.
+    // Cas 2 : vehicule temporaire — affichage specifique visiteur.
+    if (r.isTemporaire) {
+      return TemporaireResultCard(result: r);
+    }
+
+    // Cas 3 et 4 : plaque detectee — autorisee ou refusee.
     final isOk  = r.authorized;
     final plate = r.displayPlate;
     final c     = context.colors;

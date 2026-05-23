@@ -9,7 +9,7 @@ Developpee avec Flutter, elle communique avec deux backends : le **backend Larav
 - Authentification JWT (login / logout / persistance du token)
 - Dark mode + Light mode (ThemeProvider)
 - Changement de langue francais / arabe avec RTL (LocaleProvider)
-- Ecran Scanner : camera, cadre dynamique, overlay de chargement, resultat OK/refuse/non detecte
+- Ecran Scanner : camera, cadre dynamique, overlay de chargement, resultat OK/refuse/non detecte/temporaire visiteur
 - Recherche manuelle de plaque (POST /verify)
 - Historique des acces avec filtres
 - Notifications securite avec compteur non-lues (`vu_agent`), marquer lu, supprimer
@@ -136,6 +136,7 @@ lib/
 │   ├── error_banner.dart       Banniere d'erreur reutilisable (rouge, bouton retry optionnel)
 │   ├── stat_card_widget.dart   Carte KPI (hauteur fixe, taille uniforme entre cartes)
 │   ├── info_row_widget.dart    Ligne label/valeur reutilisable (gestion debordement)
+│   ├── temporaire_result_card.dart Carte resultat visiteur temporaire (scan + recherche)
 │   ├── status_badge.dart       Badge colore (Autorise / Refuse / Expire)
 │   ├── plate_badge.dart        Badge plaque d'immatriculation
 │   └── at_header.dart          En-tete Algerie Telecom (logo contraint a 32px)
@@ -278,8 +279,10 @@ ScanProvider.captureAndScan()
            │
            │  ← ScanResult JSON
            │    { detected, plate_ocr, plate_matched, similarity_score,
-           │      authorized, reason, confidence, bounding_box,
+           │      authorized, type, reason, confidence, bounding_box,
            │      vehicle: {...}, owner: {...} }
+           │    Pour les temporaires : type="temporaire",
+           │      owner: {nom, prenom, telephone, motif_visite, duree_autorisee}
            ▼
     ScanProvider.result  →  Ecran affiche resultat (autorise / refuse / non detecte)
 ```
@@ -287,6 +290,7 @@ ScanProvider.captureAndScan()
 ### Resultats possibles du scan
 | Cas | Condition | Affichage |
 |-----|-----------|-----------|
+| Visiteur temporaire | `detected && isTemporaire` | TemporaireResultCard (nom, telephone, motif, duree) |
 | Plaque autorisee | `detected && authorized` | Panel vert |
 | Plaque refusee | `detected && !authorized` | Panel rouge |
 | Plaque non detectee | `!detected` | Panel orange (aucunePlaqueMsg) |
@@ -426,6 +430,17 @@ Sur certains ecrans, l'image debordait du header.
 
 **Fix :** Correction de toutes les chaines FR avec accents corrects dans les 3 fichiers.
 
+### 9. Scan camera : affichage incomplet pour vehicules temporaires (session 2026-05-23)
+**Cause :** Trois problemes dans le pipeline scan camera pour les vehicules temporaires :
+1. `_handle_temporaire()` (AI Service) retournait `"owner": None` — les champs visiteur existaient dans le cache mais n'etaient pas mappes vers `owner`.
+2. Le WebSocket `/ws/detect` (AI Service) ne transmettait pas le champ `"type"` a Flutter.
+3. `scanner_screen.dart` utilisait un widget generique sans distinction permanent/temporaire.
+
+**Fix :**
+- `backend.py` : construction de l'objet `owner` avec les champs visiteur du cache
+- `main.py` : ajout de `"type": check.get("type")` dans le dict WebSocket
+- `scanner_screen.dart` : branchement `if (r.isTemporaire)` → `TemporaireResultCard`
+
 ### 8. Layout non responsive (session 2026-05-12)
 **Cause :** Dimensions fixes (width: 260, height: 200, etc.) dans les ecrans login, splash,
 home, stats et scanner causaient des problemes sur petits ecrans (360px).
@@ -479,6 +494,7 @@ AuthService.login()
 | Laravel | PUT | `/api/utilisateurs/{id}` | AuthService.updateProfile() |
 | AI Service | POST | `/scan` | ScanService.scanPhoto() |
 | AI Service | POST | `/verify` | ScanService.verifyPlate() |
+| AI Service | POST | `/verify-lookup` | SearchService (recherche sans enregistrement) |
 
 ---
 
