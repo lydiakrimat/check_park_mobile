@@ -10,6 +10,7 @@ import '../services/daily_counter_service.dart';
 import '../services/search_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_colors_scheme.dart';
+import '../widgets/temporaire_result_card.dart';
 
 /// Ecran de recherche manuelle par numero de plaque.
 class SearchScreen extends StatefulWidget {
@@ -86,7 +87,9 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Future<void> _showConfirmDialog() async {
-    if (_vehicleId == null) return;
+    // Pour un permanent, vehicleId est requis.
+    // Pour un temporaire, les infos visiteur suffisent.
+    if (!(_result?.isTemporaire ?? false) && _vehicleId == null) return;
     final plate = _result?.displayPlate ?? '';
     final l = context.l10n;
 
@@ -152,12 +155,25 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Future<void> _registerAccess() async {
-    if (_vehicleId == null) return;
     setState(() => _isRegistering = true);
     final l = context.l10n;
 
     try {
-      await _searchService.registerAccess(_vehicleId!, _employeeId);
+      if (_result?.isTemporaire ?? false) {
+        // Accès temporaire : envoyer les champs visiteur à Laravel.
+        await _searchService.registerTemporaireAccess(
+          plateNumber:    _result!.plateMatched ?? _result!.plateOcr ?? '',
+          nomVisiteur:    _result!.owner?.nom ?? '',
+          prenomVisiteur: _result!.owner?.prenom ?? '',
+          telephone:      _result!.owner?.telephone,
+          dureeAutorisee: _result!.owner?.dureeAutorisee ?? 60,
+        );
+      } else {
+        // Accès permanent : envoyer vehicleId et employeeId.
+        if (_vehicleId == null) return;
+        await _searchService.registerPermanentAccess(
+            _vehicleId!, _employeeId);
+      }
       unawaited(DailyCounterService.incrementAutorises());
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -333,6 +349,8 @@ class _SearchScreenState extends State<SearchScreen> {
 
           if (_errorMessage != null)
             _errorState(_errorMessage!, c)
+          else if (_result != null && _result!.isTemporaire)
+            TemporaireResultCard(result: _result!)
           else if (_result != null)
             _resultCard(_result!, c, l)
           else

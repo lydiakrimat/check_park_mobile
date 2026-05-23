@@ -131,6 +131,10 @@ class AppLocalizations {
   String get plaqueNonTrouvee      => _t('Plaque non trouvée en base',
                                          'لوحة غير موجودة');
   String get matricule             => _t('Matricule',            'رقم المعرف');
+  String get motifVisite           => _t('Motif',                'سبب الزيارة');
+  String get dureeAutorisee        => _t('Durée autorisée',      'المدة المسموحة');
+  String dureeMinutes(int n)       => _t('$n minute(s)',         '$n دقيقة');
+  String get visiteurTemporaire    => _t('Visiteur temporaire',  'زائر مؤقت');
 
   // ── Paramètres ──────────────────────────────────────────────────────────────
   String get configSysteme         => _t('Configuration du système',  'إعدادات النظام');

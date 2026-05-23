@@ -31,9 +31,8 @@ class ApiConfig {
   //static const String _host = '10.0.2.2';
 
   // Pour vrai telephone physique (meme reseau Wi-Fi que le Mac) :
-  static const String _host = '192.168.1.4';
-  //log.e('API Config: using host $_host');
-  //Log.e(''eee'',''ip ''+ip);
+  static const String _host = '192.168.1.3';
+
 
   // ── Backend Laravel (API REST) ─────────────────────────────────────────────
   static const int laravelPort = 8000;

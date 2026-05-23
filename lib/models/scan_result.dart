@@ -81,6 +81,9 @@ class ScanResult {
   /// Informations sur le propriétaire du véhicule.
   final OwnerInfo? owner;
 
+  /// Type de véhicule : "temporaire" (visiteur) ou null (permanent par défaut).
+  final String? vehicleType;
+
   const ScanResult({
     required this.detected,
     this.plateOcr,
@@ -92,7 +95,11 @@ class ScanResult {
     this.boundingBox,
     this.vehicle,
     this.owner,
+    this.vehicleType,
   });
+
+  /// true si le véhicule est un visiteur temporaire.
+  bool get isTemporaire => vehicleType == 'temporaire';
 
   /// La plaque à afficher en priorité : [plateMatched] si disponible, sinon [plateOcr].
   String get displayPlate => plateMatched ?? plateOcr ?? '';
@@ -115,6 +122,7 @@ class ScanResult {
       owner: json['owner'] != null
           ? OwnerInfo.fromJson(json['owner'] as Map<String, dynamic>)
           : null,
+      vehicleType: json['type'] as String?,
     );
   }
 }
@@ -156,21 +164,40 @@ class VehicleInfo {
   }
 }
 
-/// Informations synthétiques sur le propriétaire retournées par le AI Service.
+/// Informations sur le propriétaire (employé) ou le visiteur (temporaire).
+///
+/// Pour un véhicule permanent : [prenom], [nom], [service] sont remplis.
+/// Pour un véhicule temporaire : [prenom], [nom], [telephone],
+/// [motifVisite] et [dureeAutorisee] sont remplis.
 class OwnerInfo {
   final String? prenom;
   final String? nom;
   final String? service;
 
-  const OwnerInfo({this.prenom, this.nom, this.service});
+  /// Champs spécifiques aux visiteurs temporaires.
+  final String? telephone;
+  final String? motifVisite;
+  final int? dureeAutorisee;
+
+  const OwnerInfo({
+    this.prenom,
+    this.nom,
+    this.service,
+    this.telephone,
+    this.motifVisite,
+    this.dureeAutorisee,
+  });
 
   String get fullName => '$prenom $nom'.trim();
 
   factory OwnerInfo.fromJson(Map<String, dynamic> json) {
     return OwnerInfo(
-      prenom: json['prenom'] as String?,
-      nom: json['nom'] as String?,
-      service: json['service'] as String?,
+      prenom:          json['prenom']           as String?,
+      nom:             json['nom']              as String?,
+      service:         json['service']          as String?,
+      telephone:       json['telephone']        as String?,
+      motifVisite:     json['motif_visite']     as String?,
+      dureeAutorisee:  (json['duree_autorisee'] as num?)?.toInt(),
     );
   }
 }

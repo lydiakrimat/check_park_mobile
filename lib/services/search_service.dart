@@ -122,23 +122,48 @@ class SearchService {
     }
   }
 
-  /// Enregistre un acces autorise dans la table "acces" de Laravel.
+  /// Enregistre un acces permanent dans la table "acces" de Laravel.
   ///
-  /// A appeler UNIQUEMENT apres confirmation explicite de l'agent
-  /// (bouton "Valider l'entree" + dialog de confirmation).
-  ///
-  /// Appelle POST /api/acces sur Laravel via [ApiService] (avec token).
+  /// A appeler UNIQUEMENT apres confirmation explicite de l'agent.
+  /// Utilise pour les vehicules d'employes enregistres dans la table "vehicles".
   ///
   /// Leve une [ApiException] si l'enregistrement echoue.
-  Future<void> registerAccess(int vehicleId, int? employeeId) async {
+  Future<void> registerPermanentAccess(
+      int vehicleId, int? employeeId) async {
     final body = <String, dynamic>{
       'type_acces': 'Permanent',
       'vehicle_id': vehicleId,
       'statut':     'Autorise',
     };
-    // Ajouter l'identifiant employe uniquement s'il est disponible.
     if (employeeId != null) {
       body['employe_id'] = employeeId;
+    }
+    await _api.post(ApiConfig.accesUrl, body);
+  }
+
+  /// Enregistre un acces temporaire (visiteur) dans la table "acces" de Laravel.
+  ///
+  /// A appeler UNIQUEMENT apres confirmation explicite de l'agent.
+  /// Envoie les champs visiteur requis par AccesController pour type_acces=Temporaire.
+  ///
+  /// Leve une [ApiException] si l'enregistrement echoue.
+  Future<void> registerTemporaireAccess({
+    required String plateNumber,
+    required String nomVisiteur,
+    required String prenomVisiteur,
+    String? telephone,
+    required int dureeAutorisee,
+  }) async {
+    final body = <String, dynamic>{
+      'type_acces':            'Temporaire',
+      'plate_number_visiteur': plateNumber,
+      'nom_visiteur':          nomVisiteur,
+      'prenom_visiteur':       prenomVisiteur,
+      'duree_autorisee':       dureeAutorisee,
+      'statut':                'Autorise',
+    };
+    if (telephone != null && telephone.isNotEmpty) {
+      body['telephone_visiteur'] = telephone;
     }
     await _api.post(ApiConfig.accesUrl, body);
   }
