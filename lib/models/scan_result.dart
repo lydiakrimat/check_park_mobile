@@ -84,6 +84,9 @@ class ScanResult {
   /// Type de véhicule : "temporaire" (visiteur) ou null (permanent par défaut).
   final String? vehicleType;
 
+  /// Type de passage : 'entree' ou 'sortie' (logique entrée/sortie Laravel).
+  final String? typePassage;
+
   const ScanResult({
     required this.detected,
     this.plateOcr,
@@ -96,6 +99,7 @@ class ScanResult {
     this.vehicle,
     this.owner,
     this.vehicleType,
+    this.typePassage,
   });
 
   /// true si le véhicule est un visiteur temporaire.
@@ -123,6 +127,7 @@ class ScanResult {
           ? OwnerInfo.fromJson(json['owner'] as Map<String, dynamic>)
           : null,
       vehicleType: json['type'] as String?,
+      typePassage: json['type_passage'] as String?,
     );
   }
 }

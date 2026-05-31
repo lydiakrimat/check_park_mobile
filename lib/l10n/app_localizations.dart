@@ -101,6 +101,19 @@ class AppLocalizations {
   );
   String get confirmer          => _t('Confirmer',              'تأكيد');
 
+  // Bouton sortie
+  String get validerSortie     => _t('Valider la sortie',       'تسجيل الخروج');
+
+  // Snackbar succès sortie
+  String get sortieEnregistree => _t('Sortie enregistrée avec succès',
+                                     'تم تسجيل الخروج بنجاح');
+
+  // Dialog confirmation neutre (sans dire "entree" ni "sortie")
+  String confirmerMsgNeutre(String plate) => _t(
+    'Voulez-vous enregistrer le passage du véhicule $plate ?',
+    'هل تريد تسجيل مرور المركبة $plate ؟',
+  );
+
   // ── Scanner ─────────────────────────────────────────────────────────────────
   String get scannerUnePlaqueTitle => _t('Scanner une plaque',  'مسح لوحة ترقيم');
   String get placerPlaque          => _t('Placez la plaque dans le cadre',
@@ -256,6 +269,9 @@ class AppLocalizations {
   String get temporaire            => _t('Temporaire',                'مؤقت');
   String get entreePrefix          => _t('Entrée : ',                 'دخول : ');
   String get sortiePrefix          => _t('Sortie  : ',                'خروج : ');
+
+  // ── Logique entrée/sortie ──────────────────────────────────────────────────
+  String get toujoursSurSite       => _t('Toujours sur site',         'لا يزال في الموقع');
 }
 
 /// Accès raccourci aux traductions depuis n'importe quel build().

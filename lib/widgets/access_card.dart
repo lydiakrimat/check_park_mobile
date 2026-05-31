@@ -102,23 +102,46 @@ class AccessCard extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 2),
-                    // Date et heure de sortie — '-' si le vehicule est encore sur le site
+                    // Date et heure de sortie — ou badge "Toujours sur site" si encore présent
                     Row(
                       children: [
-                        Icon(Icons.logout_rounded, size: 12, color: c.muted),
+                        Icon(
+                          entry.dateHeureSortie != null
+                              ? Icons.logout_rounded
+                              : Icons.location_on_rounded,
+                          size: 12,
+                          color: entry.dateHeureSortie != null
+                              ? c.muted
+                              : const Color(0xFFF59E0B),
+                        ),
                         const SizedBox(width: 3),
                         Expanded(
-                          child: Text(
-                            entry.dateHeureSortie != null
-                                ? '${l.sortiePrefix}${DateFormatter.datetime(entry.dateHeureSortie)}'
-                                : '${l.sortiePrefix}-',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 11,
-                              color: c.muted,
-                            ),
-                            overflow: TextOverflow.visible,
-                            softWrap: true,
-                          ),
+                          child: entry.dateHeureSortie != null
+                              ? Text(
+                                  '${l.sortiePrefix}${DateFormatter.datetime(entry.dateHeureSortie)}',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 11,
+                                    color: c.muted,
+                                  ),
+                                  overflow: TextOverflow.visible,
+                                  softWrap: true,
+                                )
+                              : Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFEF3C7),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    l.toujoursSurSite,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      color: const Color(0xFF92400E),
+                                    ),
+                                  ),
+                                ),
                         ),
                       ],
                     ),

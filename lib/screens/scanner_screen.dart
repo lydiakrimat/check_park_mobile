@@ -9,6 +9,9 @@ import '../theme/app_colors.dart';
 import '../theme/app_colors_scheme.dart';
 import '../utils/responsive.dart';
 import '../widgets/temporaire_result_card.dart';
+import '../widgets/badge_type_passage.dart';
+import '../widgets/badge_vehicule_temporaire.dart';
+import '../providers/locale_provider.dart';
 
 /// Ecran de scan par camera.
 ///
@@ -533,6 +536,28 @@ class _ScannerScreenState extends State<ScannerScreen>
               ],
             ),
           ),
+          // Badge type de passage (entrée/sortie) — affiché si disponible
+          if (r.typePassage != null && isOk) ...[
+            const SizedBox(height: 10),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: BadgeTypePassage(
+                typePassage: r.typePassage!,
+                isArabic: context.read<LocaleProvider>().isArabic,
+              ),
+            ),
+          ],
+          // Badge véhicule temporaire — affiché uniquement pour les visiteurs
+          if (r.typePassage != null && r.isTemporaire) ...[
+            const SizedBox(height: 6),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: BadgeVehiculeTemporaire(
+                typePassage: r.typePassage!,
+                isArabic: context.read<LocaleProvider>().isArabic,
+              ),
+            ),
+          ],
           const SizedBox(height: 14),
           const Divider(height: 1, indent: 20, endIndent: 20),
           Flexible(

@@ -109,7 +109,7 @@ lib/
 │   ├── camera_service.dart     Initialisation camera, capture photo
 │   ├── access_service.dart     GET /api/acces
 │   ├── notification_service.dart GET /notifications/agent, PATCH vu-agent, DELETE
-│   ├── search_service.dart     Recherche via POST /verify
+│   ├── search_service.dart     Recherche via POST /verify-lookup + enregistrement accès
 │   ├── statistics_service.dart Calcul KPIs localement
 │   └── daily_counter_service.dart Compteurs journaliers (SharedPreferences)
 ├── providers/
@@ -430,6 +430,20 @@ Sur certains ecrans, l'image debordait du header.
 
 **Fix :** Correction de toutes les chaines FR avec accents corrects dans les 3 fichiers.
 
+### 10. Recherche manuelle : distinction entrée/sortie (session 2026-05-31)
+**Cause :** Le bouton "Valider l'entrée" et le snackbar "Accès enregistré" étaient statiques.
+L'agent ne pouvait pas savoir s'il enregistrait une entrée ou une sortie.
+
+**Fix :**
+- `search_service.dart` : `registerPermanentAccess()` et `registerTemporaireAccess()` retournent
+  désormais `Future<String?>` (le `type_passage` de la réponse Laravel : `'entree'` ou `'sortie'`)
+- `search_screen.dart` : variable `_typePassage` stocke la réponse ; le snackbar affiche un
+  message différent (vert "Accès enregistré" pour l'entrée, bleu "Sortie enregistrée" pour la
+  sortie) ; le bouton passe à "Valider la sortie" + icône `Icons.logout` après une sortie ;
+  le dialog de confirmation utilise un message neutre ("enregistrer le passage")
+- `app_localizations.dart` : 3 nouvelles clés bilingues (`validerSortie`, `sortieEnregistree`,
+  `confirmerMsgNeutre`)
+
 ### 9. Scan camera : affichage incomplet pour vehicules temporaires (session 2026-05-23)
 **Cause :** Trois problemes dans le pipeline scan camera pour les vehicules temporaires :
 1. `_handle_temporaire()` (AI Service) retournait `"owner": None` — les champs visiteur existaient dans le cache mais n'etaient pas mappes vers `owner`.
@@ -495,6 +509,7 @@ AuthService.login()
 | AI Service | POST | `/scan` | ScanService.scanPhoto() |
 | AI Service | POST | `/verify` | ScanService.verifyPlate() |
 | AI Service | POST | `/verify-lookup` | SearchService (recherche sans enregistrement) |
+| Laravel | POST | `/api/acces` | SearchService.registerPermanentAccess() / registerTemporaireAccess() |
 
 ---
 

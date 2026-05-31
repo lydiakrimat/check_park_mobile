@@ -127,8 +127,9 @@ class SearchService {
   /// A appeler UNIQUEMENT apres confirmation explicite de l'agent.
   /// Utilise pour les vehicules d'employes enregistres dans la table "vehicles".
   ///
+  /// Retourne le type_passage ('entree' ou 'sortie') fourni par Laravel.
   /// Leve une [ApiException] si l'enregistrement echoue.
-  Future<void> registerPermanentAccess(
+  Future<String?> registerPermanentAccess(
       int vehicleId, int? employeeId) async {
     final body = <String, dynamic>{
       'type_acces': 'Permanent',
@@ -138,7 +139,10 @@ class SearchService {
     if (employeeId != null) {
       body['employe_id'] = employeeId;
     }
-    await _api.post(ApiConfig.accesUrl, body);
+
+    // Capturer la réponse pour extraire le type_passage
+    final response = await _api.post(ApiConfig.accesUrl, body);
+    return (response as Map<String, dynamic>?)?['type_passage'] as String?;
   }
 
   /// Enregistre un acces temporaire (visiteur) dans la table "acces" de Laravel.
@@ -146,8 +150,9 @@ class SearchService {
   /// A appeler UNIQUEMENT apres confirmation explicite de l'agent.
   /// Envoie les champs visiteur requis par AccesController pour type_acces=Temporaire.
   ///
+  /// Retourne le type_passage ('entree' ou 'sortie') fourni par Laravel.
   /// Leve une [ApiException] si l'enregistrement echoue.
-  Future<void> registerTemporaireAccess({
+  Future<String?> registerTemporaireAccess({
     required String plateNumber,
     required String nomVisiteur,
     required String prenomVisiteur,
@@ -165,6 +170,9 @@ class SearchService {
     if (telephone != null && telephone.isNotEmpty) {
       body['telephone_visiteur'] = telephone;
     }
-    await _api.post(ApiConfig.accesUrl, body);
+
+    // Capturer la réponse pour extraire le type_passage
+    final response = await _api.post(ApiConfig.accesUrl, body);
+    return (response as Map<String, dynamic>?)?['type_passage'] as String?;
   }
 }

@@ -30,8 +30,8 @@ class ApiConfig {
   // Pour emulateur Android (AVD) :
   //static const String _host = '10.0.2.2';
 
-  // Pour vrai telephone physique (meme reseau Wi-Fi que le Mac) :
-  static const String _host = '192.168.1.3';
+  // Pour vrai telephone physique (meme reseau Wi-Fi que le pc) :
+  static const String _host = '192.168.1.11';
 
 
   // ── Backend Laravel (API REST) ─────────────────────────────────────────────

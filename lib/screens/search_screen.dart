@@ -34,6 +34,9 @@ class _SearchScreenState extends State<SearchScreen> {
 
   bool _isRegistering = false;
 
+  // Type du dernier passage enregistré : 'entree', 'sortie', ou null
+  String? _typePassage;
+
   @override
   void initState() {
     super.initState();
@@ -110,7 +113,7 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
           ),
           content: Text(
-            l.confirmerMsg(plate),
+            l.confirmerMsgNeutre(plate),
             style: GoogleFonts.plusJakartaSans(
               fontSize: 14,
               color: cl.text,
@@ -159,9 +162,12 @@ class _SearchScreenState extends State<SearchScreen> {
     final l = context.l10n;
 
     try {
+      // Capturer le type_passage retourné par Laravel
+      String? typePassage;
+
       if (_result?.isTemporaire ?? false) {
         // Accès temporaire : envoyer les champs visiteur à Laravel.
-        await _searchService.registerTemporaireAccess(
+        typePassage = await _searchService.registerTemporaireAccess(
           plateNumber:    _result!.plateMatched ?? _result!.plateOcr ?? '',
           nomVisiteur:    _result!.owner?.nom ?? '',
           prenomVisiteur: _result!.owner?.prenom ?? '',
@@ -171,21 +177,29 @@ class _SearchScreenState extends State<SearchScreen> {
       } else {
         // Accès permanent : envoyer vehicleId et employeeId.
         if (_vehicleId == null) return;
-        await _searchService.registerPermanentAccess(
+        typePassage = await _searchService.registerPermanentAccess(
             _vehicleId!, _employeeId);
       }
+
+      // Stocker le type de passage pour adapter le bouton
+      if (mounted) setState(() => _typePassage = typePassage);
+
       unawaited(DailyCounterService.incrementAutorises());
       if (!mounted) return;
+
+      // Snackbar adapté selon le type de passage
+      final estSortie = typePassage == 'sortie';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            l.accesEnregistre,
+            estSortie ? l.sortieEnregistree : l.accesEnregistre,
             style: GoogleFonts.plusJakartaSans(
               fontWeight: FontWeight.w600,
               color: Colors.white,
             ),
           ),
-          backgroundColor: AppColors.green,
+          // Bleu pour la sortie, vert pour l'entrée
+          backgroundColor: estSortie ? AppColors.primary : AppColors.green,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10)),
@@ -395,10 +409,20 @@ class _SearchScreenState extends State<SearchScreen> {
                     child: CircularProgressIndicator(
                         color: Colors.white, strokeWidth: 2.5),
                   )
-                : const Icon(Icons.check_circle_outline_rounded,
-                    color: Colors.white, size: 20),
+                // Icône adaptée selon le type de passage déjà effectué
+                : Icon(
+                    _typePassage == 'sortie'
+                        ? Icons.logout
+                        : Icons.check_circle_outline_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
             label: Text(
-              _isRegistering ? l.enregistrement : l.validerEntree,
+              _isRegistering
+                  ? l.enregistrement
+                  : _typePassage == 'sortie'
+                      ? l.validerSortie
+                      : l.validerEntree,
               style: GoogleFonts.plusJakartaSans(
                 color: Colors.white,
                 fontWeight: FontWeight.w700,
